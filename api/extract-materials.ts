@@ -19,25 +19,37 @@ const MAX_CHARS = 60_000
 
 const SYSTEM_PROMPT = `Anda asisten quantity surveyor. Dari teks dokumen konstruksi, tarik daftar material/pekerjaan menjadi data terstruktur.
 
+Teks berasal dari PDF/spreadsheet. Baris tabel dipisah baris baru, kolom dipisah " | ".
+Bentuk dokumennya bisa bermacam-macam: BQ lengkap dengan volume, daftar spesifikasi RKS,
+atau sekadar daftar material + merek (mis. daftar MOU/approval vendor). SEMUANYA sah.
+
 Balas HANYA objek JSON: {"materials": [...]}. Tiap elemen:
-- division  (string) Divisi pekerjaan. Pilih yang paling sesuai: "Struktur", "Arsitektur", "MEP", "Interior", "Lansekap". Jika benar-benar tidak jelas, pakai "Lainnya".
+- division  (string) Divisi pekerjaan. Pilih yang paling sesuai: "Struktur", "Arsitektur", "MEP", "Interior", "Lansekap". Simpulkan dari jenis materialnya (mis. atap/plafond/cat → Arsitektur; sanitary/kelistrikan/rooftank → MEP; kitchen set → Interior). Pakai "Lainnya" hanya kalau benar-benar tidak bisa disimpulkan.
 - item      (string) Nama material/pekerjaan, ringkas. WAJIB ada.
-- spec      (string) Spesifikasi teknis apa adanya dari dokumen. Kosongkan "" jika tidak disebut.
+- spec      (string) Spesifikasi teknis apa adanya. Kalau dokumen hanya menyebut merek/brand, tulis "Merek: <nama>". Kalau ada keduanya, gabungkan. Kosongkan "" jika tidak ada sama sekali.
 - standard  (string) Rujukan standar bila disebut, mis. "SNI 2847:2019". Kosongkan "" jika tidak ada.
 - volume    (string) Volume beserta satuan, mis. "412,60 m³". Kosongkan "" jika tidak ada.
 - status    (string) Salah satu: "clear", "ambiguous", "overspec", "unavailable".
 
+PENTING — kelengkapan kolom:
+- JANGAN membuang baris hanya karena spec, standard, atau volume tidak ada.
+  Banyak dokumen memang tidak memuatnya. Ambil apa yang ada, sisanya kosongkan "".
+- Cukup ada nama material untuk dianggap satu baris yang sah.
+
 Aturan penilaian status:
-- "clear"       : spesifikasi jelas dan terukur.
-- "ambiguous"   : spesifikasi kabur/subjektif (mis. "kualitas baik", tanpa tipe/merek/ukuran).
-- "overspec"    : jelas tapi berlebihan untuk kelas proyek (mis. motif custom, impor khusus).
+- "clear"       : ada spesifikasi terukur ATAU merek/tipe yang jelas ditunjuk.
+- "ambiguous"   : tidak ada spesifikasi maupun merek, atau kata-katanya subjektif
+                  (mis. "kualitas baik", "setara", tanpa tipe/ukuran).
+- "overspec"    : jelas tapi berlebihan untuk hunian kelas menengah (mis. motif custom, impor khusus).
 - "unavailable" : menyebut barang yang tampak sudah tidak diproduksi / tidak tersedia.
 
 Aturan umum:
-- Ambil HANYA yang benar-benar tertulis. JANGAN mengarang item, volume, atau standar.
-- Jangan masukkan baris header tabel, subtotal, atau keterangan umum sebagai item.
+- Ambil HANYA yang benar-benar tertulis. JANGAN mengarang volume, standar, atau merek.
+- Jangan masukkan baris header tabel (mis. "NO | MATERIAL | Brand"), judul bagian,
+  subtotal, atau keterangan umum sebagai item.
+- Buang nomor urut dari nama item ("1.00 Atap" → item "Atap").
 - Pertahankan format angka Indonesia apa adanya (koma desimal).
-- Jika dokumen tidak memuat daftar material sama sekali, balas {"materials": []}.`
+- Jika dokumen benar-benar tidak memuat material apa pun, balas {"materials": []}.`
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   allowCors(res)

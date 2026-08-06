@@ -429,7 +429,14 @@ function SpecTable({
         setBusyLabel(`Menyusun data dari ${file.name}…`)
         const rows = await extractMaterials(file.name, read.text)
         if (rows.length === 0) {
-          problems.push(`${file.name}: tidak ditemukan daftar material di dalamnya.`)
+          // Show what was actually read, so an extraction problem is
+          // distinguishable from a document that holds no material list.
+          const preview = read.text.replace(/\s+/g, ' ').slice(0, 140)
+          problems.push(
+            `${file.name}: tidak ditemukan daftar material. Yang terbaca: "${preview}${
+              read.text.length > 140 ? '…' : ''
+            }"`,
+          )
           continue
         }
 

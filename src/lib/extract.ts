@@ -24,6 +24,58 @@ export type ExtractResult =
   /** Pages that need OCR, as JPEG data URLs. */
   | { kind: 'images'; images: string[]; pages: number; truncated: boolean }
 
+/** A positioned run of text on a PDF page. */
+export interface PositionedText {
+  str: string
+  x: number
+  y: number
+  width: number
+}
+
+/** Vertical distance within which two runs count as the same visual row. */
+const LINE_TOLERANCE = 3
+/** Horizontal gap that reads as a column break rather than a word space. */
+const COLUMN_GAP = 8
+
+/**
+ * Rebuilds rows and columns from positioned text runs.
+ *
+ * A PDF stores text as runs at coordinates, with no notion of a table. Reading
+ * them in document order and joining with spaces flattens a material list into
+ * one long line — "NO MATERIAL Brand 1.00 Atap Alderon 2.00 Plafond Yoshino" —
+ * and the column each value belonged to is gone. Grouping by baseline and
+ * marking wide gaps as column breaks keeps the table legible.
+ */
+export function layoutText(items: PositionedText[]): string {
+  const usable = items.filter((i) => i.str.trim().length > 0)
+  if (usable.length === 0) return ''
+
+  const rows: { y: number; items: PositionedText[] }[] = []
+  for (const item of usable) {
+    const row = rows.find((r) => Math.abs(r.y - item.y) <= LINE_TOLERANCE)
+    if (row) row.items.push(item)
+    else rows.push({ y: item.y, items: [item] })
+  }
+
+  // PDF y grows upward, so the top of the page sorts last without this.
+  rows.sort((a, b) => b.y - a.y)
+
+  return rows
+    .map((row) => {
+      const sorted = [...row.items].sort((a, b) => a.x - b.x)
+      let line = ''
+      let cursorX: number | null = null
+      for (const item of sorted) {
+        if (cursorX !== null) line += item.x - cursorX > COLUMN_GAP ? ' | ' : ' '
+        line += item.str.trim()
+        cursorX = item.x + item.width
+      }
+      return line.replace(/[ \t]+/g, ' ').trim()
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
 export function isSupportedFile(name: string): boolean {
   const lower = name.toLowerCase()
   return (
@@ -71,11 +123,12 @@ async function extractPdf(file: File): Promise<ExtractResult> {
     for (let n = 1; n <= doc.numPages; n++) {
       const page = await doc.getPage(n)
       const content = await page.getTextContent()
-      const text = content.items
-        .map((item) => ('str' in item ? item.str : ''))
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim()
+      const positioned: PositionedText[] = content.items.flatMap((item) =>
+        'str' in item
+          ? [{ str: item.str, x: item.transform[4], y: item.transform[5], width: item.width }]
+          : [],
+      )
+      const text = layoutText(positioned)
       if (text) pages.push(text)
     }
 
