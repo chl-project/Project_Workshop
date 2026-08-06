@@ -21,14 +21,5 @@ export function keyEnforced(): boolean {
 export function allowCors(res: VercelResponse): void {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,POST,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, x-filename, x-project')
-}
-
-/** Reads the raw request body as a Buffer (used for file uploads). */
-export async function readRawBody(req: VercelRequest): Promise<Buffer> {
-  const chunks: Buffer[] = []
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : (chunk as Buffer))
-  }
-  return Buffer.concat(chunks)
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key')
 }

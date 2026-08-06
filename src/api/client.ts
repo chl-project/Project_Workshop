@@ -1,3 +1,5 @@
+import { upload } from '@vercel/blob/client'
+
 /**
  * Transport layer. Reads go through the Neon-backed `/api/store` endpoint; the
  * first time a resource is missing there, the client seeds it from the bundled
@@ -131,18 +133,16 @@ export async function listDocuments(projectId: string): Promise<DocumentRecord[]
   }
 }
 
-/** Uploads a file to Blob and records it in Neon. Returns the created record. */
+/**
+ * Uploads a file straight to Vercel Blob (client upload) and records it in Neon.
+ * The `/api/documents` route hands out a scoped token and writes the metadata
+ * row once Blob confirms the upload. Returns a record for optimistic display.
+ */
 export async function uploadDocument(projectId: string, file: File): Promise<DocumentRecord> {
-  const headers: Record<string, string> = {
-    'Content-Type': file.type || 'application/octet-stream',
-    'x-project': projectId,
-    'x-filename': file.name,
-  }
-  if (API_KEY) headers['x-api-key'] = API_KEY
-  const res = await fetch(`${API_BASE}/documents`, { method: 'POST', headers, body: file })
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}))
-    throw new ApiError((detail as { error?: string }).error ?? 'upload gagal', res.status)
-  }
-  return (await res.json()) as DocumentRecord
+  const blob = await upload(`${projectId}/${file.name}`, file, {
+    access: 'public',
+    handleUploadUrl: `${API_BASE}/documents`,
+    clientPayload: JSON.stringify({ projectId, name: file.name, apiKey: API_KEY ?? '' }),
+  })
+  return { id: blob.pathname, project_id: projectId, name: file.name, url: blob.url }
 }
