@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { fetchBmw, keys } from '@/api'
 import { htmlTable, printReport } from '@/lib/export'
-import { ErrorPanel, LoadingPanel } from '@/components/primitives'
+import { ErrorPanel, LoadingPanel, NoDataPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
 import {
   formatScore,
@@ -14,7 +14,7 @@ import {
 } from '@/lib/scenario'
 import { btnGhost, btnPrimary, card, cardClipped, screenSub, screenTitle, table } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
-import type { BmwData, Scenario, ScenarioKey } from '@/types'
+import type { BmwData, Scenario, ScenarioKey, ScreenId } from '@/types'
 
 const radarStroke: Record<ScenarioKey, string> = {
   basic: color.grey,
@@ -34,7 +34,13 @@ const sliderLabels: { key: WeightKey; label: string }[] = [
   { key: 't', label: 'Waktu' },
 ]
 
-export function BiayaMutuWaktu({ projectId }: { projectId: string }) {
+export function BiayaMutuWaktu({
+  projectId,
+  onNavigate,
+}: {
+  projectId: string
+  onNavigate: (s: ScreenId) => void
+}) {
   const { data, loading, error } = useResource<{ data: BmwData; defaultWeights: Weights }>(
     keys.bmw(projectId),
     () => fetchBmw(projectId),
@@ -44,7 +50,7 @@ export function BiayaMutuWaktu({ projectId }: { projectId: string }) {
 
   if (loading) return <LoadingPanel />
   if (error) return <ErrorPanel error={error} />
-  if (!data) return null
+  if (!data) return <NoDataPanel screen="skenario Biaya–Mutu–Waktu" onNavigate={() => onNavigate('spek')} />
 
   const w = weights ?? data.defaultWeights
   const scenarios = [...data.data.scenarios, ...extra]

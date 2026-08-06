@@ -191,6 +191,61 @@ export function LoadingPanel({ label = 'Memuat data…' }: { label?: string }) {
   )
 }
 
+/**
+ * Shown when a project has no data for this screen yet. A project created in
+ * the app starts empty on purpose, so this is the normal first state — not a
+ * failure — and it says where the data comes from.
+ */
+export function NoDataPanel({
+  screen,
+  onNavigate,
+}: {
+  screen: string
+  onNavigate?: () => void
+}) {
+  return (
+    <div
+      style={{
+        background: color.surface,
+        border: `1px dashed ${color.borderDashed}`,
+        borderRadius: 10,
+        padding: '52px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 12,
+        textAlign: 'center',
+      }}
+    >
+      <div style={{ font: mono('400 22px'), color: color.ghost }}>◇</div>
+      <div style={{ font: sans('600 13.5px') }}>Belum ada data {screen}</div>
+      <div style={{ font: sans('400 12px/1.65'), color: color.muted, maxWidth: 400 }}>
+        Proyek ini masih kosong. Unggah dokumen di <strong>Spesifikasi &amp; Material</strong> untuk
+        mengisi daftar material, dan di <strong>Pengetahuan</strong> untuk bahan rujukan asisten.
+      </div>
+      {onNavigate && (
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={onNavigate}
+          style={{
+            border: 0,
+            cursor: 'pointer',
+            background: color.green,
+            color: color.surface,
+            borderRadius: 7,
+            padding: '9px 16px',
+            font: sans('500 12px'),
+            marginTop: 2,
+          }}
+        >
+          Buka Spesifikasi &amp; Material
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function ErrorPanel({ error }: { error: Error }) {
   return (
     <div

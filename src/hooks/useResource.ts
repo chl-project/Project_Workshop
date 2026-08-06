@@ -11,7 +11,7 @@ export interface Resource<T> {
  * Reads one endpoint. If the value is already cached, the first render is
  * already `loading: false` — so returning to a screen doesn't flash a skeleton.
  */
-export function useResource<T>(cacheKey: string, load: () => Promise<T>): Resource<T> {
+export function useResource<T>(cacheKey: string, load: () => Promise<T | null>): Resource<T> {
   const cached = peek<T>(cacheKey) ?? null
   const [state, setState] = useState<Resource<T>>({
     data: cached,

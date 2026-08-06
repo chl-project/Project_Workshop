@@ -40,6 +40,19 @@ export const keys = {
   clashDetail: (no: string) => `/clash/${no}`,
 } as const
 
+/**
+ * The bundled sample projects. Anything else was created in the app and must
+ * start empty: passing a `null` fallback stops a fresh project from being
+ * seeded with these figures and presenting them as its own.
+ */
+const SAMPLE_IDS = new Set(projectFixture.map((p) => p.id))
+
+export const isSampleProject = (projectId: string) => SAMPLE_IDS.has(projectId)
+
+/** Supplies the fixture only for a sample project; real projects get nothing. */
+const sampleOnly = <T>(projectId: string, fixture: () => T): (() => T) | null =>
+  SAMPLE_IDS.has(projectId) ? fixture : null
+
 export const fetchProjects = () =>
   getResource<{ projects: Project[]; activeId: string }>(keys.projects, () => ({
     projects: projectFixture,
@@ -47,24 +60,25 @@ export const fetchProjects = () =>
   }))
 
 export const fetchDashboard = (projectId: string) =>
-  getResource<DashboardData>(keys.dashboard(projectId), () => dashboardFixture)
+  getResource<DashboardData>(keys.dashboard(projectId), sampleOnly(projectId, () => dashboardFixture))
 
 export const fetchSpesifikasi = (projectId: string) =>
-  getResource<SpecData>(keys.spesifikasi(projectId), () => spekFixture)
+  getResource<SpecData>(keys.spesifikasi(projectId), sampleOnly(projectId, () => spekFixture))
 
 export const fetchCost = (projectId: string) =>
-  getResource<CostData>(keys.cost(projectId), () => costFixture)
+  getResource<CostData>(keys.cost(projectId), sampleOnly(projectId, () => costFixture))
 
 export const fetchBmw = (projectId: string) =>
-  getResource<{ data: BmwData; defaultWeights: typeof defaultWeights }>(keys.bmw(projectId), () => ({
-    data: bmwFixture,
-    defaultWeights,
-  }))
+  getResource<{ data: BmwData; defaultWeights: typeof defaultWeights }>(
+    keys.bmw(projectId),
+    sampleOnly(projectId, () => ({ data: bmwFixture, defaultWeights })),
+  )
 
 export const fetchKomposit = (projectId: string) =>
-  getResource<CompositeData>(keys.komposit(projectId), () => kompositFixture)
+  getResource<CompositeData>(keys.komposit(projectId), sampleOnly(projectId, () => kompositFixture))
 
-export const fetchBq = (projectId: string) => getResource<BqData>(keys.bq(projectId), () => bqFixture)
+export const fetchBq = (projectId: string) =>
+  getResource<BqData>(keys.bq(projectId), sampleOnly(projectId, () => bqFixture))
 
 export const fetchVolumeTrace = (itemNo: string) =>
   getResource<VolumeTrace>(keys.volumeTrace(itemNo), () => volumeTrace)

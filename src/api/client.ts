@@ -66,8 +66,22 @@ async function seed(path: string, value: unknown): Promise<void> {
  *   2. Neon via `/api/store<path>`,
  *   3. the bundled `fallback` fixture — which also seeds the store when the row
  *      was simply missing (404), so subsequent loads are served by Neon.
+ *
+ * A `null` fallback means the caller has no sample to stand in: the resource
+ * resolves to `null` instead. That is what keeps a project created in the app
+ * empty — without it, a project with no rows yet would be seeded with another
+ * project's figures and show them under its own name.
  */
-export async function getResource<T>(path: string, fallback: () => T): Promise<T> {
+export async function getResource<T>(path: string, fallback: () => T): Promise<T>
+export async function getResource<T>(path: string, fallback: null): Promise<T | null>
+export async function getResource<T>(
+  path: string,
+  fallback: (() => T) | null,
+): Promise<T | null>
+export async function getResource<T>(
+  path: string,
+  fallback: (() => T) | null,
+): Promise<T | null> {
   const hit = cache.get(path)
   if (hit !== undefined) return hit as T
 
@@ -80,6 +94,7 @@ export async function getResource<T>(path: string, fallback: () => T): Promise<T
         return data
       }
       if (res.status === 404) {
+        if (!fallback) return null
         const value = fallback()
         cache.set(path, value)
         void seed(path, value)
@@ -91,6 +106,7 @@ export async function getResource<T>(path: string, fallback: () => T): Promise<T
     }
   }
 
+  if (!fallback) return null
   await sleep(LATENCY)
   const value = fallback()
   cache.set(path, value)

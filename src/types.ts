@@ -7,6 +7,11 @@ export type ScreenId = 'dash' | 'spek' | 'cost' | 'bmw' | 'gbr' | 'bq' | 'know' 
 export interface Project {
   id: string
   name: string
+  units?: string
+  area?: string
+  location?: string
+  /** Set on projects created in the app; absent on the bundled samples. */
+  createdAt?: string
   /** e.g. "48 unit · 2.996 m² · Bekasi" */
   meta: string
 }

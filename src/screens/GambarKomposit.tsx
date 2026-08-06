@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { fetchKomposit, keys } from '@/api'
 import { htmlTable, printReport } from '@/lib/export'
 import { floors, lockTooltip } from '@/data/komposit'
-import { Chip, ErrorPanel, LoadingPanel, Segmented } from '@/components/primitives'
+import { Chip, ErrorPanel, LoadingPanel, NoDataPanel, Segmented } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
 import { btnGhost, card, cardClipped, chip, screenSub, screenTitle, table, th, theadRow } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { ChipTone } from '@/theme/styles'
-import type { ClashLevel, CompositeData } from '@/types'
+import type { ClashLevel, CompositeData, ScreenId } from '@/types'
 
 type LayerKey = 'ars' | 'str' | 'mep' | 'int'
 type Floor = (typeof floors)[number]
@@ -34,9 +34,11 @@ const checkGlyph = {
 export function GambarKomposit({
   projectId,
   onOpenClash,
+  onNavigate,
 }: {
   projectId: string
   onOpenClash: (no: string) => void
+  onNavigate: (s: ScreenId) => void
 }) {
   const { data, loading, error } = useResource<CompositeData>(keys.komposit(projectId), () =>
     fetchKomposit(projectId),
@@ -53,7 +55,7 @@ export function GambarKomposit({
 
   if (loading) return <LoadingPanel />
   if (error) return <ErrorPanel error={error} />
-  if (!data) return null
+  if (!data) return <NoDataPanel screen="gambar komposit" onNavigate={() => onNavigate('spek')} />
 
   const toggle = (k: LayerKey) => setLayers((prev) => ({ ...prev, [k]: !prev[k] }))
   const op = (k: LayerKey) => (layers[k] ? 1 : 0)

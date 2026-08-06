@@ -3,11 +3,51 @@ import { color, layout, mono, sans } from '@/theme/tokens'
 import { currentUser, today } from '@/data/projects'
 import type { Project } from '@/types'
 
+export type ProjectAction = 'create' | 'edit' | 'duplicate' | 'delete'
+
+/** Small icon button inside a project row; stops the row's select handler. */
+function RowAction({
+  label,
+  glyph,
+  danger,
+  onClick,
+}: {
+  label: string
+  glyph: string
+  danger?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      style={{
+        border: 0,
+        background: 'transparent',
+        cursor: 'pointer',
+        borderRadius: 5,
+        padding: '4px 6px',
+        font: sans('400 12px'),
+        lineHeight: 1,
+        color: danger ? color.red : color.muted,
+      }}
+    >
+      {glyph}
+    </button>
+  )
+}
+
 export function Header({
   title,
   projects,
   activeProjectId,
   onSelectProject,
+  onProjectAction,
   open,
   onToggle,
   onClose,
@@ -16,6 +56,7 @@ export function Header({
   projects: Project[]
   activeProjectId: string
   onSelectProject: (id: string) => void
+  onProjectAction: (action: ProjectAction, project?: Project) => void
   open: boolean
   onToggle: () => void
   onClose: () => void
@@ -111,28 +152,68 @@ export function Header({
                 Tidak ada proyek cocok
               </div>
             )}
-            {shown.map((p) => {
-              const isActive = p.id === activeProjectId
-              return (
-                <div
-                  key={p.id}
-                  className={isActive ? undefined : 'proj-option'}
-                  onClick={() => onSelectProject(p.id)}
-                  style={{
-                    padding: 9,
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    background: isActive ? color.greenTint : undefined,
-                    font: sans('500 12.5px'),
-                  }}
-                >
-                  {p.name}
-                  <div style={{ font: mono('400 11px'), color: color.faint, marginTop: 2 }}>
-                    {p.meta}
+            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+              {shown.map((p) => {
+                const isActive = p.id === activeProjectId
+                return (
+                  <div
+                    key={p.id}
+                    className={isActive ? undefined : 'proj-option'}
+                    onClick={() => onSelectProject(p.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: 9,
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      background: isActive ? color.greenTint : undefined,
+                      font: sans('500 12.5px'),
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {p.name}
+                      <div style={{ font: mono('400 11px'), color: color.faint, marginTop: 2 }}>
+                        {p.meta}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 2 }}>
+                      <RowAction label="Ubah" glyph="✎" onClick={() => onProjectAction('edit', p)} />
+                      <RowAction
+                        label="Duplikat"
+                        glyph="⧉"
+                        onClick={() => onProjectAction('duplicate', p)}
+                      />
+                      <RowAction
+                        label="Hapus"
+                        glyph="🗑"
+                        danger
+                        onClick={() => onProjectAction('delete', p)}
+                      />
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onProjectAction('create')}
+              style={{
+                width: '100%',
+                marginTop: 6,
+                border: `1px solid ${color.greenLine}`,
+                background: color.greenTint,
+                color: color.green,
+                cursor: 'pointer',
+                borderRadius: 7,
+                padding: '9px 10px',
+                font: sans('500 12px'),
+                textAlign: 'left',
+              }}
+            >
+              ＋ Proyek baru
+            </button>
           </div>
         </>
       )}

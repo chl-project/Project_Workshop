@@ -1,5 +1,5 @@
 import { fetchDashboard, keys } from '@/api'
-import { Chip, ErrorPanel, LoadingPanel } from '@/components/primitives'
+import { Chip, ErrorPanel, LoadingPanel, NoDataPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
 import { card, cardClipped } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
@@ -18,7 +18,7 @@ export function Dashboard({
 
   if (loading) return <LoadingPanel />
   if (error) return <ErrorPanel error={error} />
-  if (!data) return null
+  if (!data) return <NoDataPanel screen="ringkasan proyek" onNavigate={() => onNavigate('spek')} />
 
   return (
     <>

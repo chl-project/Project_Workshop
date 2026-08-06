@@ -4,12 +4,12 @@ import { aiBannerText } from '@/data/cost'
 import { requestVeSuggestions, type VeSuggestion } from '@/lib/ai'
 import { AiBanner } from '@/components/AiBanner'
 import { Field, Modal } from '@/components/Modal'
-import { Chip, ErrorPanel, LoadingPanel } from '@/components/primitives'
+import { Chip, ErrorPanel, LoadingPanel, NoDataPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
 import { btnGhost, btnPrimary, card, cardClipped, table, th, theadRow, vRule } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { ChipTone } from '@/theme/styles'
-import type { CostData, VeStatus } from '@/types'
+import type { CostData, ScreenId, VeStatus } from '@/types'
 
 const veStatusTone: Record<VeStatus, ChipTone> = {
   approved: 'green',
@@ -22,10 +22,12 @@ export function BuildUpCost({
   projectId,
   showAiBanner,
   onOpenVe,
+  onNavigate,
 }: {
   projectId: string
   showAiBanner: boolean
   onOpenVe: (veId: string) => void
+  onNavigate: (s: ScreenId) => void
 }) {
   const { data, loading, error } = useResource<CostData>(keys.cost(projectId), () =>
     fetchCost(projectId),
@@ -38,7 +40,7 @@ export function BuildUpCost({
 
   if (loading) return <LoadingPanel />
   if (error) return <ErrorPanel error={error} />
-  if (!data) return null
+  if (!data) return <NoDataPanel screen="build up cost" onNavigate={() => onNavigate('spek')} />
 
   const { summary, breakdown, breakdownTotal, benchmark, ve } = data
   const params = paramsOverride ?? data.params

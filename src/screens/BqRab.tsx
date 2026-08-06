@@ -4,7 +4,7 @@ import { aiBannerText } from '@/data/cost'
 import { downloadExcel, htmlTable, printReport } from '@/lib/export'
 import { AiBanner } from '@/components/AiBanner'
 import { Field, Modal } from '@/components/Modal'
-import { Chip, ErrorPanel, LoadingPanel, ProgressStep } from '@/components/primitives'
+import { Chip, ErrorPanel, LoadingPanel, NoDataPanel, ProgressStep } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
 import { btnGhost, btnPrimary, card, cardClipped, table, th, theadRow } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
@@ -68,7 +68,7 @@ export function BqRab({
 
   if (loading) return <LoadingPanel />
   if (error) return <ErrorPanel error={error} />
-  if (!data) return null
+  if (!data) return <NoDataPanel screen="BQ / RAB" onNavigate={() => onNavigate('spek')} />
 
   const toggle = (no: number) => setOpen((prev) => ({ ...prev, [no]: !prev[no] }))
 
