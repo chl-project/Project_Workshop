@@ -15,8 +15,9 @@ import {
   ErrorPanel,
   LoadingPanel,
   ProgressStep,
-  SegmentedStatic,
+  Segmented,
 } from '@/components/primitives'
+import { downloadExcel } from '@/lib/export'
 import { useResource } from '@/hooks/useResource'
 import {
   btnPrimary,
@@ -312,6 +313,35 @@ function SpecTable({
   const [docs, setDocs] = useState<string[]>(data.documents)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<MaterialStatus | 'all'>('all')
+  const [showFilter, setShowFilter] = useState(false)
+  const [activeClass, setActiveClass] = useState(data.activeClass)
+
+  const q = search.trim().toLowerCase()
+  const filtered = data.materials.filter(
+    (r) =>
+      (statusFilter === 'all' || r.status === statusFilter) &&
+      (q === '' ||
+        [r.division, r.item, r.spec, r.standard].some((v) => v.toLowerCase().includes(q))),
+  )
+
+  const statusOptions: { value: MaterialStatus | 'all'; label: string }[] = [
+    { value: 'all', label: 'Semua status' },
+    { value: 'clear', label: 'Jelas' },
+    { value: 'ambiguous', label: 'Ambigu' },
+    { value: 'overspec', label: 'Overspec' },
+    { value: 'unavailable', label: 'Tidak tersedia' },
+  ]
+  const activeFilterLabel = statusOptions.find((o) => o.value === statusFilter)?.label
+
+  const exportExcel = () =>
+    downloadExcel(
+      'spesifikasi-material',
+      'Spesifikasi & Material',
+      ['Divisi', 'Item', 'Spesifikasi', 'Standar', 'Volume', 'Status'],
+      filtered.map((r) => [r.division, r.item, r.spec, r.standard, r.volume, r.statusLabel]),
+    )
 
   // Merge any documents already uploaded to Blob for this project.
   useEffect(() => {
@@ -390,7 +420,7 @@ function SpecTable({
         )}
         <div style={{ flex: 1 }} />
         <span style={{ font: sans('500 11px'), color: color.muted }}>Kelas proyek</span>
-        <SegmentedStatic options={data.projectClasses} value={data.activeClass} />
+        <Segmented options={data.projectClasses} value={activeClass} onChange={setActiveClass} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, alignItems: 'start' }}>
@@ -409,19 +439,87 @@ function SpecTable({
               {data.itemCount} item · {data.divisionCount} divisi
             </span>
             <div style={{ flex: 1 }} />
-            <span style={pillBtn}>Cari item…</span>
-            <span style={pillBtn}>Filter ▾</span>
-            <span
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari item…"
+              aria-label="Cari item"
+              style={{
+                font: mono('400 11px'),
+                color: color.ink,
+                border: `1px solid ${color.border}`,
+                borderRadius: 5,
+                padding: '5px 9px',
+                width: 130,
+                background: color.surface,
+                outline: 'none',
+              }}
+            />
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setShowFilter((v) => !v)}
+                style={{ ...pillBtn, background: color.surface, cursor: 'pointer' }}
+              >
+                {statusFilter === 'all' ? 'Filter ▾' : `${activeFilterLabel} ✕`}
+              </button>
+              {showFilter && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    right: 0,
+                    zIndex: 20,
+                    background: color.surface,
+                    border: `1px solid ${color.border}`,
+                    borderRadius: 7,
+                    boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+                    padding: 5,
+                    minWidth: 150,
+                  }}
+                >
+                  {statusOptions.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(o.value)
+                        setShowFilter(false)
+                      }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        border: 0,
+                        cursor: 'pointer',
+                        borderRadius: 5,
+                        padding: '6px 9px',
+                        font: sans('500 11.5px'),
+                        color: color.ink,
+                        background: o.value === statusFilter ? color.greenTint : 'transparent',
+                      }}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={exportExcel}
               style={{
                 font: sans('500 11px'),
                 color: color.green,
                 border: `1px solid ${color.greenLine}`,
                 borderRadius: 5,
                 padding: '5px 9px',
+                background: color.greenTint,
+                cursor: 'pointer',
               }}
             >
               Ekspor Excel
-            </span>
+            </button>
           </div>
 
           <table style={table}>
@@ -436,7 +534,7 @@ function SpecTable({
               </tr>
             </thead>
             <tbody>
-              {data.materials.map((row) => (
+              {filtered.map((row) => (
                 <MaterialTr key={row.id} row={row} />
               ))}
             </tbody>
@@ -449,7 +547,7 @@ function SpecTable({
               color: color.faint,
             }}
           >
-            Menampilkan {data.shownCount} dari {data.itemCount} item
+            Menampilkan {filtered.length} dari {data.itemCount} item
           </div>
         </div>
 

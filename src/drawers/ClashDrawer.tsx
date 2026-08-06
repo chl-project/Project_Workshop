@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { fetchClashDetail, keys } from '@/api'
 import { Chip, ErrorPanel, LoadingPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
@@ -10,6 +11,7 @@ export function ClashDrawer({ no, onClose }: { no: string; onClose: () => void }
   const { data, loading, error } = useResource<ClashDetail>(keys.clashDetail(no), () =>
     fetchClashDetail(no),
   )
+  const [marked, setMarked] = useState<'none' | 'reviewed' | 'done'>('none')
 
   return (
     <Drawer
@@ -114,14 +116,55 @@ export function ClashDrawer({ no, onClose }: { no: string; onClose: () => void }
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" style={{ ...btnGhost, flex: 1, padding: 9 }}>
-              Tandai ditinjau
-            </button>
-            <button type="button" className="btn-primary" style={{ ...btnPrimary, flex: 1, padding: 9 }}>
-              Tandai selesai
-            </button>
-          </div>
+          {marked === 'none' ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                style={{ ...btnGhost, flex: 1, padding: 9 }}
+                onClick={() => setMarked('reviewed')}
+              >
+                Tandai ditinjau
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ ...btnPrimary, flex: 1, padding: 9 }}
+                onClick={() => setMarked('done')}
+              >
+                Tandai selesai
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                background: color.greenTint,
+                border: `1px solid ${color.greenLine}`,
+                borderRadius: 8,
+                padding: '10px 13px',
+                font: sans('500 12px'),
+                color: color.greenText,
+              }}
+            >
+              <span>✓ {marked === 'done' ? 'Ditandai selesai' : 'Ditandai untuk ditinjau'}</span>
+              <button
+                type="button"
+                onClick={() => setMarked('none')}
+                style={{
+                  border: 0,
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  font: mono('400 11px'),
+                  color: color.muted,
+                }}
+              >
+                Urungkan
+              </button>
+            </div>
+          )}
         </DrawerBody>
       )}
     </Drawer>

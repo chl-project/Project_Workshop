@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchBq, keys, recalcHeader, recalculateBq, recalcSteps } from '@/api'
 import { aiBannerText } from '@/data/cost'
+import { downloadExcel, htmlTable, printReport } from '@/lib/export'
 import { AiBanner } from '@/components/AiBanner'
+import { Field, Modal } from '@/components/Modal'
 import { Chip, ErrorPanel, LoadingPanel, ProgressStep } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
 import { btnGhost, btnPrimary, card, cardClipped, table, th, theadRow } from '@/theme/styles'
@@ -38,6 +40,8 @@ export function BqRab({
   const [tab, setTab] = useState<Tab>('bq')
   const [open, setOpen] = useState<Record<number, boolean>>({})
   const [recalculating, setRecalculating] = useState(false)
+  const [showAssumptions, setShowAssumptions] = useState(false)
+  const [assumptions, setAssumptions] = useState<{ prices: string; ohProfit: string } | null>(null)
   const job = useRef(0)
 
   /* Divisions carry their own default open/closed state from the API. */
@@ -68,6 +72,31 @@ export function BqRab({
 
   const toggle = (no: number) => setOpen((prev) => ({ ...prev, [no]: !prev[no] }))
 
+  const src = { ...data.source, ...(assumptions ?? {}) }
+
+  const bqRows = (): string[][] => {
+    const rows: string[][] = []
+    data.divisions.forEach((div) => {
+      rows.push([String(div.no), div.title, '', '', '', div.amount, ''])
+      ;(div.items ?? []).forEach((it) =>
+        rows.push([it.no, it.description, it.unit, it.volume, it.unitPrice, it.amount, it.confidence]),
+      )
+      if (div.restLabel) rows.push(['', div.restLabel, '', '', '', div.restAmount ?? '', ''])
+    })
+    rows.push(['', data.grandTotal.label, '', '', '', data.grandTotal.amount, ''])
+    return rows
+  }
+  const bqHeaders = ['No', 'Uraian Pekerjaan', 'Satuan', 'Volume', 'Harga Satuan', 'Jumlah Harga', 'Keyakinan']
+
+  const exportBqExcel = () => downloadExcel('bq-rab', 'BQ / RAB', bqHeaders, bqRows())
+  const exportBqPdf = () =>
+    printReport(
+      'BQ / RAB',
+      `<h1>BQ / RAB</h1>` +
+        `<div class="meta">Sumber gambar: ${data.source.drawings} · Sumber harga: ${src.prices} · ${src.ohProfit}</div>` +
+        htmlTable(bqHeaders, bqRows(), [3, 4, 5]),
+    )
+
   return (
     <>
       {showAiBanner && <AiBanner text={aiBannerText} marginBottom={14} />}
@@ -95,15 +124,20 @@ export function BqRab({
         <div style={{ width: 1, height: 30, background: color.borderSoft }} />
         <div>
           <div style={{ font: mono('400 10.5px'), color: color.faint }}>SUMBER HARGA</div>
-          <div style={{ font: sans('500 12.5px'), marginTop: 4 }}>{data.source.prices}</div>
+          <div style={{ font: sans('500 12.5px'), marginTop: 4 }}>{src.prices}</div>
         </div>
         <div style={{ width: 1, height: 30, background: color.borderSoft }} />
         <div>
           <div style={{ font: mono('400 10.5px'), color: color.faint }}>OH &amp; PROFIT · PPN</div>
-          <div style={{ font: sans('500 12.5px'), marginTop: 4 }}>{data.source.ohProfit}</div>
+          <div style={{ font: sans('500 12.5px'), marginTop: 4 }}>{src.ohProfit}</div>
         </div>
         <div style={{ flex: 1 }} />
-        <button type="button" className="btn-ghost" style={btnGhost}>
+        <button
+          type="button"
+          className="btn-ghost"
+          style={btnGhost}
+          onClick={() => setShowAssumptions(true)}
+        >
           Atur asumsi
         </button>
         <button
@@ -191,6 +225,7 @@ export function BqRab({
           <button
             type="button"
             className="btn-tint"
+            onClick={exportBqExcel}
             style={{
               border: `1px solid ${color.greenLine}`,
               background: color.greenTint,
@@ -203,7 +238,12 @@ export function BqRab({
           >
             Ekspor Excel
           </button>
-          <button type="button" className="btn-ghost" style={{ ...btnGhost, padding: '7px 13px' }}>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={exportBqPdf}
+            style={{ ...btnGhost, padding: '7px 13px' }}
+          >
             Ekspor PDF
           </button>
           <button
@@ -222,7 +262,47 @@ export function BqRab({
       )}
       {tab === 'rek' && <RecapTab data={data} />}
       {tab === 'ver' && <VersionsTab data={data} />}
+
+      {showAssumptions && (
+        <AssumptionsModal
+          initial={{ prices: src.prices, ohProfit: src.ohProfit }}
+          onClose={() => setShowAssumptions(false)}
+          onSave={(v) => {
+            setAssumptions(v)
+            setShowAssumptions(false)
+          }}
+        />
+      )}
     </>
+  )
+}
+
+function AssumptionsModal({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: { prices: string; ohProfit: string }
+  onClose: () => void
+  onSave: (v: { prices: string; ohProfit: string }) => void
+}) {
+  const [prices, setPrices] = useState(initial.prices)
+  const [ohProfit, setOhProfit] = useState(initial.ohProfit)
+  return (
+    <Modal title="Atur asumsi" onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Field label="Sumber harga" value={prices} onChange={setPrices} />
+        <Field label="OH & profit · PPN" value={ohProfit} onChange={setOhProfit} />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 2 }}>
+          <button type="button" style={btnGhost} onClick={onClose}>
+            Batal
+          </button>
+          <button type="button" style={btnPrimary} onClick={() => onSave({ prices, ohProfit })}>
+            Simpan
+          </button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

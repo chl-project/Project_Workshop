@@ -93,7 +93,9 @@ function Studio() {
         </main>
       </div>
 
-      {drawer?.kind === 'volume' && <VolumeDrawer itemNo={drawer.itemNo} onClose={closeDrawer} />}
+      {drawer?.kind === 'volume' && (
+        <VolumeDrawer itemNo={drawer.itemNo} onClose={closeDrawer} onNavigate={navigate} />
+      )}
       {drawer?.kind === 've' && (
         <VeDrawer veId={drawer.id} onClose={closeDrawer} onNavigate={navigate} />
       )}

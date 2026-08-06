@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { fetchVeDetail, keys } from '@/api'
 import { Chip, ErrorPanel, LoadingPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
@@ -18,6 +19,7 @@ export function VeDrawer({
   const { data, loading, error } = useResource<VeDetail>(keys.veDetail(veId), () =>
     fetchVeDetail(veId),
   )
+  const [deferred, setDeferred] = useState(false)
 
   return (
     <Drawer
@@ -112,9 +114,20 @@ export function VeDrawer({
             {data.risk}
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" style={{ ...btnGhost, flex: 1, padding: 9 }}>
-              Tunda
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              style={{
+                ...btnGhost,
+                flex: 1,
+                padding: 9,
+                ...(deferred
+                  ? { background: color.amberPanelBg, color: color.amberPanelText, borderColor: color.amber }
+                  : {}),
+              }}
+              onClick={() => setDeferred((v) => !v)}
+            >
+              {deferred ? '✓ Ditunda' : 'Tunda'}
             </button>
             <button
               type="button"

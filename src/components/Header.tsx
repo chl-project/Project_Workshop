@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { color, layout, mono, sans } from '@/theme/tokens'
 import { currentUser, today } from '@/data/projects'
 import type { Project } from '@/types'
@@ -30,6 +30,9 @@ export function Header({
   }, [open, onClose])
 
   const active = projects.find((p) => p.id === activeProjectId) ?? projects[0]
+  const [query, setQuery] = useState('')
+  const q = query.trim().toLowerCase()
+  const shown = q === '' ? projects : projects.filter((p) => p.name.toLowerCase().includes(q))
 
   return (
     <header
@@ -84,17 +87,31 @@ export function Header({
               padding: 8,
             }}
           >
-            <div
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cari proyek…"
+              aria-label="Cari proyek"
               style={{
+                width: '100%',
+                boxSizing: 'border-box',
                 padding: '7px 9px',
+                marginBottom: 4,
+                border: 'none',
                 borderBottom: `1px solid ${color.borderSoft}`,
                 font: mono('400 11.5px'),
-                color: color.faint,
+                color: color.ink,
+                outline: 'none',
+                background: 'transparent',
               }}
-            >
-              Cari proyek…
-            </div>
-            {projects.map((p) => {
+            />
+            {shown.length === 0 && (
+              <div style={{ padding: 9, font: mono('400 11.5px'), color: color.faint }}>
+                Tidak ada proyek cocok
+              </div>
+            )}
+            {shown.map((p) => {
               const isActive = p.id === activeProjectId
               return (
                 <div

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { fetchKomposit, keys } from '@/api'
+import { htmlTable, printReport } from '@/lib/export'
 import { floors, lockTooltip } from '@/data/komposit'
 import { Chip, ErrorPanel, LoadingPanel, Segmented } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
@@ -48,6 +49,7 @@ export function GambarKomposit({
   })
   const [opacity, setOpacity] = useState(70)
   const [floor, setFloor] = useState<Floor>('Lt.2')
+  const [zoom, setZoom] = useState(100)
 
   if (loading) return <LoadingPanel />
   if (error) return <ErrorPanel error={error} />
@@ -55,6 +57,30 @@ export function GambarKomposit({
 
   const toggle = (k: LayerKey) => setLayers((prev) => ({ ...prev, [k]: !prev[k] }))
   const op = (k: LayerKey) => (layers[k] ? 1 : 0)
+
+  const clampZoom = (z: number) => Math.min(250, Math.max(50, z))
+
+  const exportKoordinasi = () => {
+    const body =
+      `<h1>Laporan Koordinasi — Gambar Komposit</h1>` +
+      `<div class="meta">${floor} · ${data.clashTotal} temuan · progres koordinasi ${data.coordination.donePct}%</div>` +
+      `<h2>Ringkasan</h2>` +
+      htmlTable(
+        ['Keterangan', 'Nilai'],
+        data.coordination.counts.map((c) => [c.label, String(c.value)]),
+      ) +
+      `<h2>Temuan clash &amp; inkonsistensi</h2>` +
+      htmlTable(
+        ['No', 'Lokasi', 'Disiplin', 'Masalah', 'Tingkat', 'PIC', 'Status'],
+        data.clashes.map((c) => [c.no, c.location, c.disciplines, c.problem, c.level, c.pic, c.status]),
+      ) +
+      `<h2>Checklist koordinasi</h2>` +
+      htmlTable(
+        ['Item', 'Status'],
+        data.checklist.map((c) => [c.label, c.state]),
+      )
+    printReport('Laporan Koordinasi', body)
+  }
 
   return (
     <>
@@ -74,7 +100,7 @@ export function GambarKomposit({
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button type="button" className="btn-ghost" style={btnGhost}>
+          <button type="button" className="btn-ghost" style={btnGhost} onClick={exportKoordinasi}>
             Ekspor laporan koordinasi
           </button>
           <button
@@ -150,16 +176,38 @@ export function GambarKomposit({
             <span style={{ font: sans('600 12.5px') }}>Viewer overlay</span>
             <span style={{ font: mono('400 11px'), color: color.faint }}>{floor} · skala 1:100</span>
             <div style={{ flex: 1 }} />
-            {['−', '100%', '＋', 'reset'].map((z) => (
-              <span key={z} style={zoomPill}>
-                {z}
-              </span>
-            ))}
+            <button
+              type="button"
+              style={zoomPill}
+              onClick={() => setZoom((z) => clampZoom(z - 25))}
+              aria-label="Perkecil"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              style={zoomPill}
+              onClick={() => setZoom(100)}
+              aria-label="Setel zoom ke 100%"
+            >
+              {zoom}%
+            </button>
+            <button
+              type="button"
+              style={zoomPill}
+              onClick={() => setZoom((z) => clampZoom(z + 25))}
+              aria-label="Perbesar"
+            >
+              ＋
+            </button>
+            <button type="button" style={zoomPill} onClick={() => setZoom(100)}>
+              reset
+            </button>
           </div>
-          <div style={{ background: color.surfaceGrid, padding: 14 }}>
+          <div style={{ background: color.surfaceGrid, padding: 14, overflow: 'auto' }}>
             <svg
               viewBox="0 0 620 380"
-              style={{ width: '100%', display: 'block' }}
+              style={{ width: `${zoom}%`, display: 'block' }}
               role="img"
               aria-label="Placeholder gambar denah bertumpuk antar disiplin"
             >
@@ -395,4 +443,6 @@ const zoomPill = {
   border: `1px solid ${color.border}`,
   borderRadius: 5,
   padding: '4px 9px',
+  background: color.surface,
+  cursor: 'pointer',
 } as const

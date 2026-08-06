@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { fetchCost, keys } from '@/api'
 import { aiBannerText } from '@/data/cost'
+import { requestVeSuggestions, type VeSuggestion } from '@/lib/ai'
 import { AiBanner } from '@/components/AiBanner'
+import { Field, Modal } from '@/components/Modal'
 import { Chip, ErrorPanel, LoadingPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
 import { btnGhost, btnPrimary, card, cardClipped, table, th, theadRow, vRule } from '@/theme/styles'
@@ -27,12 +30,18 @@ export function BuildUpCost({
   const { data, loading, error } = useResource<CostData>(keys.cost(projectId), () =>
     fetchCost(projectId),
   )
+  const [paramsOverride, setParamsOverride] = useState<{ label: string; value: string }[] | null>(
+    null,
+  )
+  const [showParams, setShowParams] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
 
   if (loading) return <LoadingPanel />
   if (error) return <ErrorPanel error={error} />
   if (!data) return null
 
-  const { summary, params, breakdown, breakdownTotal, benchmark, ve } = data
+  const { summary, breakdown, breakdownTotal, benchmark, ve } = data
+  const params = paramsOverride ?? data.params
 
   return (
     <>
@@ -92,7 +101,12 @@ export function BuildUpCost({
               </div>
             ))}
           </div>
-          <button type="button" className="btn-ghost" style={{ ...btnGhost, width: '100%', marginTop: 14, padding: 8 }}>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => setShowParams(true)}
+            style={{ ...btnGhost, width: '100%', marginTop: 14, padding: 8 }}
+          >
             Ubah parameter
           </button>
         </div>
@@ -311,7 +325,12 @@ export function BuildUpCost({
                 <span style={{ fontSize: 11, color: color.muted }}>{ve.approvedSavingPct}</span>
               </div>
             </div>
-            <button type="button" className="btn-primary" style={{ ...btnPrimary, padding: '9px 15px' }}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setAiOpen(true)}
+              style={{ ...btnPrimary, padding: '9px 15px' }}
+            >
               ✦ Minta usulan VE dari AI
             </button>
           </div>
@@ -430,6 +449,156 @@ export function BuildUpCost({
           menu Biaya–Mutu–Waktu
         </div>
       </div>
+
+      {showParams && (
+        <ParamsModal
+          initial={params}
+          onClose={() => setShowParams(false)}
+          onSave={(v) => {
+            setParamsOverride(v)
+            setShowParams(false)
+          }}
+        />
+      )}
+      {aiOpen && (
+        <AiVeModal
+          projectId={projectId}
+          context={ve.rows.map((r) => `${r.item}: ${r.change}`)}
+          onClose={() => setAiOpen(false)}
+        />
+      )}
     </>
+  )
+}
+
+function ParamsModal({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: { label: string; value: string }[]
+  onClose: () => void
+  onSave: (v: { label: string; value: string }[]) => void
+}) {
+  const [rows, setRows] = useState(initial.map((p) => ({ ...p })))
+  const setVal = (i: number, v: string) =>
+    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, value: v } : r)))
+  return (
+    <Modal title="Ubah parameter estimasi" onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {rows.map((r, i) => (
+          <Field key={r.label} label={r.label} value={r.value} onChange={(v) => setVal(i, v)} />
+        ))}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 2 }}>
+          <button type="button" style={btnGhost} onClick={onClose}>
+            Batal
+          </button>
+          <button type="button" style={btnPrimary} onClick={() => onSave(rows)}>
+            Simpan
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function AiVeModal({
+  projectId,
+  context,
+  onClose,
+}: {
+  projectId: string
+  context: string[]
+  onClose: () => void
+}) {
+  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [suggestions, setSuggestions] = useState<VeSuggestion[]>([])
+  const [msg, setMsg] = useState('')
+
+  const run = async () => {
+    setState('loading')
+    const r = await requestVeSuggestions(projectId, context)
+    if (r.ok) {
+      setSuggestions(r.suggestions ?? [])
+      setState('done')
+    } else {
+      setMsg(r.error ?? 'Gagal')
+      setState('error')
+    }
+  }
+
+  return (
+    <Modal title="✦ Minta usulan VE dari AI" onClose={onClose} width={520}>
+      <div style={{ font: sans('400 12px/1.6'), color: color.muted, marginBottom: 14 }}>
+        AI menelaah item pekerjaan pada estimasi ini dan mengusulkan alternatif value engineering
+        beserta perkiraan penghematannya. Hasil bersifat usulan — tetap perlu diverifikasi.
+      </div>
+
+      {state === 'idle' && (
+        <button type="button" style={{ ...btnPrimary, width: '100%', padding: 10 }} onClick={run}>
+          Jalankan analisa
+        </button>
+      )}
+
+      {state === 'loading' && (
+        <div style={{ font: mono('400 12px'), color: color.faint, padding: '8px 0' }}>
+          Menganalisa item pekerjaan…
+        </div>
+      )}
+
+      {state === 'error' && (
+        <div
+          style={{
+            background: color.amberPanelBg,
+            color: color.amberPanelText,
+            borderRadius: 8,
+            padding: '12px 13px',
+            font: sans('400 12px/1.6'),
+          }}
+        >
+          {msg}
+        </div>
+      )}
+
+      {state === 'done' &&
+        (suggestions.length === 0 ? (
+          <div style={{ font: sans('400 12px'), color: color.muted }}>
+            AI tidak menemukan usulan tambahan.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {suggestions.map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  border: `1px solid ${color.border}`,
+                  borderRadius: 8,
+                  padding: '11px 13px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    alignItems: 'baseline',
+                  }}
+                >
+                  <span style={{ font: sans('600 12.5px') }}>{s.item}</span>
+                  <span style={{ font: mono('600 12px'), color: color.greenOk }}>{s.saving}</span>
+                </div>
+                <div style={{ font: sans('400 11.5px/1.6'), color: color.inkSoft, marginTop: 4 }}>
+                  {s.change}
+                </div>
+                {s.note && (
+                  <div style={{ font: sans('400 11px/1.55'), color: color.muted, marginTop: 4 }}>
+                    {s.note}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
+    </Modal>
   )
 }

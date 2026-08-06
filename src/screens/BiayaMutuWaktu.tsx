@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { fetchBmw, keys } from '@/api'
+import { htmlTable, printReport } from '@/lib/export'
 import { ErrorPanel, LoadingPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
 import {
@@ -39,18 +40,53 @@ export function BiayaMutuWaktu({ projectId }: { projectId: string }) {
     () => fetchBmw(projectId),
   )
   const [weights, setWeights] = useState<Weights | null>(null)
+  const [extra, setExtra] = useState<Scenario[]>([])
 
   if (loading) return <LoadingPanel />
   if (error) return <ErrorPanel error={error} />
   if (!data) return null
 
   const w = weights ?? data.defaultWeights
-  const scenarios = data.data.scenarios
+  const scenarios = [...data.data.scenarios, ...extra]
   const recommendation = recommend(scenarios, w)
 
   const setWeight = (key: WeightKey, value: number) => setWeights(rebalance(w, key, value))
 
   const cellBg = (s: Scenario) => (s.isBase ? color.greenRow : undefined)
+
+  const addScenario = () => {
+    const base = data.data.scenarios.find((s) => s.isBase) ?? data.data.scenarios[0]
+    const n = extra.length + 1
+    setExtra((prev) => [
+      ...prev,
+      {
+        ...base,
+        key: `custom${n}` as ScenarioKey,
+        name: `Skenario ${n}`,
+        subtitle: 'skenario kustom',
+        isBase: false,
+      },
+    ])
+  }
+
+  const exportPdf = () => {
+    const headers = ['Aspek', ...scenarios.map((s) => s.name)]
+    const rows = [
+      ['Biaya', ...scenarios.map((s) => s.cost.total)],
+      ['Mutu', ...scenarios.map((s) => s.quality.join('; '))],
+      ['Waktu', ...scenarios.map((s) => s.time.weeks)],
+      ['Risiko', ...scenarios.map((s) => s.risk)],
+      ['Skor', ...scenarios.map((s) => formatScore(score(s, w)))],
+    ]
+    printReport(
+      'Perbandingan Skenario',
+      `<h1>Biaya–Mutu–Waktu — Perbandingan Skenario</h1>` +
+        `<div class="meta">Bobot: Biaya ${w.b}% · Mutu ${w.m}% · Waktu ${w.t}%</div>` +
+        htmlTable(headers, rows) +
+        `<h2>Rekomendasi: ${recommendation.name}</h2><p>${recommendation.why}</p>` +
+        `<p><strong>Perlu diwaspadai:</strong> ${recommendation.watch}</p>`,
+    )
+  }
 
   return (
     <>
@@ -70,10 +106,10 @@ export function BiayaMutuWaktu({ projectId }: { projectId: string }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" className="btn-ghost" style={btnGhost}>
+          <button type="button" className="btn-ghost" style={btnGhost} onClick={addScenario}>
             ＋ Skenario baru
           </button>
-          <button type="button" className="btn-primary" style={btnPrimary}>
+          <button type="button" className="btn-primary" style={btnPrimary} onClick={exportPdf}>
             Ekspor PDF
           </button>
         </div>
@@ -263,8 +299,8 @@ export function BiayaMutuWaktu({ projectId }: { projectId: string }) {
                 <polygon
                   key={s.key}
                   points={radarPoints(s)}
-                  fill={radarFill[s.key]}
-                  stroke={radarStroke[s.key]}
+                  fill={radarFill[s.key] ?? 'rgba(120,120,110,.15)'}
+                  stroke={radarStroke[s.key] ?? color.greenSage}
                   strokeWidth={s.isBase ? 1.8 : 1.6}
                 />
               ))}
@@ -296,7 +332,7 @@ export function BiayaMutuWaktu({ projectId }: { projectId: string }) {
                       display: 'inline-block',
                       width: 8,
                       height: 8,
-                      background: radarStroke[s.key],
+                      background: radarStroke[s.key] ?? color.greenSage,
                       borderRadius: 2,
                     }}
                   />{' '}

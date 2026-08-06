@@ -1,15 +1,27 @@
+import { useState } from 'react'
 import { fetchVolumeTrace, keys } from '@/api'
 import { LoadingPanel, ErrorPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
 import { btnGhost, btnPrimary, btnTint } from '@/theme/styles'
 import { color, mono } from '@/theme/tokens'
-import type { VolumeTrace } from '@/types'
+import type { ScreenId, VolumeTrace } from '@/types'
 import { Drawer, DrawerBody, FactRow } from './Drawer'
 
-export function VolumeDrawer({ itemNo, onClose }: { itemNo: string; onClose: () => void }) {
+export function VolumeDrawer({
+  itemNo,
+  onClose,
+  onNavigate,
+}: {
+  itemNo: string
+  onClose: () => void
+  onNavigate: (s: ScreenId) => void
+}) {
   const { data, loading, error } = useResource<VolumeTrace>(keys.volumeTrace(itemNo), () =>
     fetchVolumeTrace(itemNo),
   )
+  const [verified, setVerified] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [volume, setVolume] = useState<string | null>(null)
 
   return (
     <Drawer
@@ -56,7 +68,24 @@ export function VolumeDrawer({ itemNo, onClose }: { itemNo: string; onClose: () 
               </FactRow>
             ))}
             <FactRow label={data.total.label} borderTop>
-              <span style={{ font: mono('600 13px') }}>{data.total.value}</span>
+              {editing ? (
+                <input
+                  value={volume ?? data.total.value}
+                  onChange={(e) => setVolume(e.target.value)}
+                  aria-label="Volume manual"
+                  style={{
+                    font: mono('600 13px'),
+                    width: 130,
+                    textAlign: 'right',
+                    border: `1px solid ${color.green}`,
+                    borderRadius: 5,
+                    padding: '3px 7px',
+                    outline: 'none',
+                  }}
+                />
+              ) : (
+                <span style={{ font: mono('600 13px') }}>{volume ?? data.total.value}</span>
+              )}
             </FactRow>
           </div>
 
@@ -100,6 +129,10 @@ export function VolumeDrawer({ itemNo, onClose }: { itemNo: string; onClose: () 
               type="button"
               className="btn-tint"
               style={{ ...btnTint, marginTop: 10, width: '100%', padding: 9 }}
+              onClick={() => {
+                onNavigate('gbr')
+                onClose()
+              }}
             >
               Lihat di gambar
             </button>
@@ -113,11 +146,24 @@ export function VolumeDrawer({ itemNo, onClose }: { itemNo: string; onClose: () 
               gap: 8,
             }}
           >
-            <button type="button" style={{ ...btnGhost, flex: 1, padding: 9 }}>
-              Edit volume manual
+            <button
+              type="button"
+              style={{ ...btnGhost, flex: 1, padding: 9 }}
+              onClick={() => setEditing((v) => !v)}
+            >
+              {editing ? 'Simpan volume' : 'Edit volume manual'}
             </button>
-            <button type="button" style={{ ...btnPrimary, flex: 1, padding: 9 }}>
-              Tandai terverifikasi
+            <button
+              type="button"
+              style={{
+                ...btnPrimary,
+                flex: 1,
+                padding: 9,
+                ...(verified ? { background: color.greenOk } : {}),
+              }}
+              onClick={() => setVerified(true)}
+            >
+              {verified ? '✓ Terverifikasi' : 'Tandai terverifikasi'}
             </button>
           </div>
         </DrawerBody>
