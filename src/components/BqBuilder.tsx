@@ -2,7 +2,15 @@ import { useRef, useState } from 'react'
 import { fetchBuildUp, fetchProjects, keys, saveResource, uploadDocument } from '@/api'
 import { isSupportedFile } from '@/lib/extract'
 import { readDocument } from '@/lib/ocr'
-import { generateBuildUp, inferMarkup, mergeDoc, recompute } from '@/lib/buildup'
+import {
+  answerQuestion,
+  generateBuildUp,
+  inferMarkup,
+  mergeDoc,
+  recompute,
+  regenerateWithAnswers,
+  withDefaults,
+} from '@/lib/buildup'
 import {
   exportBuildUpCsv,
   exportBuildUpJson,
@@ -11,6 +19,7 @@ import {
 } from '@/lib/buildupExport'
 import { priceBasis } from '@/data/priceBasis'
 import { AiBanner } from '@/components/AiBanner'
+import { BqQuestions } from '@/components/BqQuestions'
 import { BqView } from '@/components/BqView'
 import { ErrorPanel, LoadingPanel, ProgressStep, type StepState } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
@@ -60,7 +69,7 @@ export function BqBuilder({
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const doc = override ?? stored.data ?? null
+  const doc = withDefaults(override ?? stored.data ?? null)
   const busy = stage === 'reading' || stage === 'thinking'
   const projectName =
     projects.data?.projects.find((p) => p.id === projectId)?.name ?? ''
@@ -123,6 +132,27 @@ export function BqBuilder({
     void persist(recompute(doc, { ...current, ...patch }))
   }
 
+  const setAnswer = (id: string, answer: string) => {
+    if (!doc) return
+    void persist(answerQuestion(doc, id, answer))
+  }
+
+  /** Re-runs the estimate treating the answers as fact. */
+  const recalculate = async () => {
+    if (!doc || busy) return
+    setProblem('')
+    setStage('thinking')
+    setMessage('Menghitung ulang dengan jawaban Anda…')
+    try {
+      await persist(await regenerateWithAnswers(doc, projectId, projectName))
+      setStage('idle')
+      setMessage('')
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : 'Gagal menghitung ulang.')
+      setStage('error')
+    }
+  }
+
   /** A figure the user typed replaces whatever the model read off the drawing. */
   const setArea = (m2: number | null) => {
     if (!doc || m2 === (doc.areaM2 ?? null)) return
@@ -131,6 +161,11 @@ export function BqBuilder({
       areaM2: m2 ?? undefined,
       areaSource: m2 == null ? undefined : 'user',
       areaBreakdown: m2 == null ? doc.areaBreakdown : undefined,
+      // The model usually asks for this too; keep the two inputs showing the
+      // same figure rather than letting them disagree.
+      questions: doc.questions.map((q) =>
+        q.target === 'areaM2' ? { ...q, answer: m2 == null ? undefined : String(m2) } : q,
+      ),
     })
   }
 
@@ -182,6 +217,12 @@ export function BqBuilder({
         <>
           <Toolbar doc={doc} busy={busy} onMarkup={setMarkup} onAdd={() => inputRef.current?.click()} />
           {showAiBanner && <AiBanner text={AI_CAUTION} marginBottom={16} />}
+          <BqQuestions
+            doc={doc}
+            busy={busy}
+            onAnswer={setAnswer}
+            onRecalculate={() => void recalculate()}
+          />
           <BqView doc={doc} onArea={setArea} />
         </>
       )}

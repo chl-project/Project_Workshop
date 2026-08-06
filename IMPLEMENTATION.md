@@ -99,6 +99,18 @@ The workflow is upload → read → price → export:
    workbook's exact column order, AHS, and a Catatan sheet carrying the
    assumptions), PDF via the print view, CSV, and the raw JSON.
 
+**When data is missing, the estimate asks.** An uploaded drawing set almost
+never carries everything a price needs. The model is told to produce the bill
+regardless — on a stated assumption, because a number today beats a perfect
+number next week — and to raise every gap that would move the total as a
+question, tagged with what it assumed instead and how far the total shifts if
+that assumption is wrong (>10% / 3–10% / <3%, highest first, capped at eight).
+Answering one and pressing **Hitung ulang** re-runs the estimate with the
+replies passed back as fact that outranks any assumption. No re-upload is
+needed: the extracted document text travels with the bill. Answers persist,
+survive a reload, carry across a re-run, and both the workbook and the PDF
+print two lists — what the user confirmed, and what is still assumed.
+
 **Floor area is entered, not guessed.** `areaM2` is the total of every floor
 plate, and it drives the cost-per-m² check on the whole bill — so a wrong one
 makes a sound bill read as under-priced. A drawing set exported to PDF often

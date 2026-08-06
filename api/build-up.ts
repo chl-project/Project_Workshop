@@ -57,7 +57,12 @@ Balas HANYA satu objek JSON dengan bentuk berikut:
         { "description": "Upah tukang", "qty": 1, "unit": "m3", "unitPrice": 171250 }
       ] }
   ],
-  "assumptions": ["kalimat asumsi yang Anda pakai"]
+  "assumptions": ["kalimat asumsi yang Anda pakai"],
+  "questions": [
+    { "id": "luas-bangunan", "question": "Berapa total luas lantai bangunan (semua lantai dijumlahkan)?",
+      "affects": "cost per m2 dan seluruh volume arsitektur", "assumed": "belum diasumsikan",
+      "impact": "tinggi", "kind": "number", "unit": "m2", "target": "areaM2" }
+  ]
 }
 
 STRUKTUR SECTION — pakai urutan baku ini, buang yang memang tidak ada pekerjaannya:
@@ -125,6 +130,31 @@ UJI KEWAJARAN — lakukan sebelum membalas:
 - Bill hunian yang lengkap jarang punya kurang dari 60 baris item. Kalau punya Anda lebih
   sedikit, kemungkinan besar ada lingkup yang terlewat.
 
+"questions" — DATA YANG MASIH KURANG. Ini sama pentingnya dengan bill-nya sendiri:
+- Dokumen yang diunggah hampir tidak pernah memuat semua yang dibutuhkan untuk estimasi
+  yang akurat. Untuk SETIAP hal yang Anda butuhkan tapi tidak ada di dokumen, dan yang
+  kalau tebakannya meleset membuat total bergeser nyata, buat satu entri "questions".
+- TETAP KELUARKAN BILL-NYA. Jangan menolak menghitung karena datanya kurang: pakai asumsi
+  yang wajar, tulis asumsinya di "assumed", lalu tanyakan. Pengguna butuh angka hari ini.
+- "impact" diisi seberapa jauh total bergeser kalau asumsi itu salah:
+  "tinggi"  = menggeser total >10% (mis. luas bangunan, jumlah lantai, jenis pondasi,
+              spesifikasi finishing, lingkup MEP)
+  "sedang"  = 3–10% (mis. tebal plat, mutu beton, jenis penutup atap, tinggi plafon)
+  "rendah"  = <3% (mis. merek cat, tipe fitting)
+- Urutkan dari impact tertinggi. Maksimal 8 pertanyaan — pilih yang paling menentukan,
+  jangan menanyakan hal yang bisa Anda baca sendiri dari dokumen.
+- "kind": "number" kalau jawabannya angka (isi "unit"), "choice" kalau pilihan terbatas
+  (isi "options"), selain itu "text".
+- Kalau "areaM2" tidak bisa diukur, pertanyaan pertama WAJIB soal total luas lantai
+  dengan "target": "areaM2".
+- Bahasa Indonesia, kalimatnya untuk manajer proyek — bukan istilah internal model.
+- Kalau dokumennya benar-benar lengkap, balas "questions": [].
+
+Kalau pesan pengguna memuat bagian "JAWABAN DARI PENGGUNA", itu jawaban atas pertanyaan
+Anda sebelumnya. Perlakukan sebagai FAKTA yang mengalahkan asumsi apa pun: pakai angkanya,
+hitung ulang volume yang terpengaruh, hapus pertanyaan yang sudah terjawab dari "questions",
+dan pindahkan yang sudah pasti dari "assumptions" ke keterangan biasa.
+
 KEJUJURAN — bagian ini menentukan apakah hasilnya bisa dipakai:
 - Volume dari gambar adalah PERKIRAAN. Tulis di "assumptions" setiap dasar ukur yang Anda pakai
   (mis. "luas lantai dasar 60 m2 diperkirakan dari grid 5x12 m", "tinggi lantai 3,675 m dari peil
@@ -151,9 +181,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     text?: unknown
     hint?: string
     basis?: PriceBasis
+    answers?: { question?: string; answer?: string }[]
   }
   const text = typeof body.text === 'string' ? body.text.trim() : ''
   if (!text) return res.status(400).json({ error: 'teks dokumen kosong' })
+
+  const answers = (Array.isArray(body.answers) ? body.answers : [])
+    .map((a) => ({ question: str(a?.question), answer: str(a?.answer) }))
+    .filter((a) => a.question && a.answer)
 
   const context = [
     `Nama proyek di aplikasi: ${body.projectName || '-'}`,
@@ -161,6 +196,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     body.hint ? `Catatan dari pengguna: ${body.hint}` : '',
     '',
     describeBasis(body.basis),
+    '',
+    answers.length
+      ? 'JAWABAN DARI PENGGUNA (fakta, mengalahkan asumsi):\n' +
+        answers.map((a) => `- ${a.question}\n  jawab: ${a.answer}`).join('\n')
+      : '',
     '',
     'Isi dokumen:',
     text.slice(0, MAX_CHARS),
@@ -260,6 +300,43 @@ function num(v: unknown): number | undefined {
 }
 
 const asArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : [])
+
+const IMPACTS = new Set(['tinggi', 'sedang', 'rendah'])
+const KINDS = new Set(['number', 'text', 'choice'])
+const IMPACT_ORDER: Record<string, number> = { tinggi: 0, sedang: 1, rendah: 2 }
+/** Enough to be useful; more than this and nobody answers any of them. */
+const MAX_QUESTIONS = 8
+
+/** Validates the data gaps, highest-impact first. */
+function parseQuestions(raw: unknown): Record<string, unknown>[] {
+  const seen = new Set<string>()
+
+  return asArray(raw)
+    .filter((q): q is Record<string, unknown> => Boolean(q) && typeof q === 'object')
+    .map((q, i) => {
+      const kind = KINDS.has(str(q.kind)) ? str(q.kind) : 'text'
+      const options = asArray(q.options).map(str).filter(Boolean)
+      return {
+        id: str(q.id) || `q${i + 1}`,
+        question: str(q.question),
+        affects: str(q.affects),
+        assumed: str(q.assumed),
+        impact: IMPACTS.has(str(q.impact)) ? str(q.impact) : 'sedang',
+        // A choice with nothing to choose from is just a text box.
+        kind: kind === 'choice' && options.length < 2 ? 'text' : kind,
+        unit: str(q.unit) || undefined,
+        options: options.length >= 2 ? options : undefined,
+        target: str(q.target) === 'areaM2' ? 'areaM2' : undefined,
+      }
+    })
+    .filter((q) => {
+      if (!q.question || seen.has(q.id)) return false
+      seen.add(q.id)
+      return true
+    })
+    .sort((a, b) => IMPACT_ORDER[a.impact] - IMPACT_ORDER[b.impact])
+    .slice(0, MAX_QUESTIONS)
+}
 
 /**
  * Turns the model's reply into a document the client can render.
@@ -368,6 +445,7 @@ function parseDoc(
     grandTotal: 0,
     ahs,
     assumptions: asArray(src.assumptions).map(str).filter(Boolean),
+    questions: parseQuestions(src.questions),
     sources: [filename],
     generatedAt: new Date().toISOString(),
   }

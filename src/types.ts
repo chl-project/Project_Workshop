@@ -390,6 +390,35 @@ export interface BqMarkup {
   wastePct: number | null
 }
 
+/**
+ * A fact the estimate needs but the documents did not carry.
+ *
+ * The bill is produced anyway, on a stated assumption — a quantity surveyor
+ * who refuses to price until every question is answered is useless. But the
+ * assumption is shown as a question the user can answer, and answering it
+ * re-runs the estimate. `impact` is how far the total moves if the assumption
+ * is wrong, so the expensive questions sort to the top.
+ */
+export interface BqQuestion {
+  id: string
+  /** What is being asked, phrased for a project manager rather than a model. */
+  question: string
+  /** Which part of the bill depends on it. */
+  affects: string
+  /** What was assumed so the bill could be produced. */
+  assumed: string
+  impact: 'tinggi' | 'sedang' | 'rendah'
+  kind: 'number' | 'text' | 'choice'
+  /** For `number` — the unit the answer is in, e.g. "m²". */
+  unit?: string
+  /** For `choice` — the options offered. */
+  options?: string[]
+  /** Answering this also sets the document's floor area. */
+  target?: 'areaM2'
+  /** What the user replied. Absent until they do. */
+  answer?: string
+}
+
 export interface BuildUpDoc {
   title: string
   project: string
@@ -416,6 +445,13 @@ export interface BuildUpDoc {
   ahs: AhsAnalysis[]
   /** What the model had to assume — read this before trusting the figures. */
   assumptions: string[]
+  /** Data gaps the user can close to sharpen the estimate. */
+  questions: BqQuestion[]
+  /**
+   * The extracted document text the bill was read from, so answering the
+   * questions can re-run the estimate without a re-upload. Capped server-side.
+   */
+  sourceText?: string
   /** File names the bill was read from. */
   sources: string[]
   generatedAt: string

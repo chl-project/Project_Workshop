@@ -124,7 +124,16 @@ export interface GenerateInput {
   text: string
   /** Building type / scope hint the user typed, passed through to the model. */
   hint?: string
+  /** Answers to the questions from a previous pass, treated as fact. */
+  answers?: { question: string; answer: string }[]
 }
+
+/**
+ * How much extracted text is kept with the bill so the estimate can be re-run
+ * when the user answers a question. Matches the server's own prompt cap —
+ * keeping more would bloat the stored row without reaching the model.
+ */
+const KEEP_TEXT = 90_000
 
 /**
  * The app's price basis travels with the request, so a generated bill is priced
@@ -154,8 +163,106 @@ export async function generateBuildUp(input: GenerateInput): Promise<BuildUpDoc>
   // Surface the percentages the model actually applied, so the toolbar opens on
   // "10%" rather than a blank box the user has to guess at. A bill that priced
   // each line differently has no single percentage and keeps its per-line values.
-  const doc = recompute({ ...body.doc, basis: priceBasis.label })
+  const doc = recompute({
+    ...body.doc,
+    basis: priceBasis.label,
+    sourceText: input.text.slice(0, KEEP_TEXT),
+  })
   return recompute(doc, inferMarkup(doc))
+}
+
+/**
+ * Fills in the collections a stored bill may predate.
+ *
+ * Bills are saved as JSON and read back as-is, so one written before questions
+ * existed comes back without that array — and the panel would throw on it.
+ * Every read goes through here.
+ */
+export function withDefaults(doc: BuildUpDoc | null): BuildUpDoc | null {
+  if (!doc) return null
+  return {
+    ...doc,
+    sections: doc.sections ?? [],
+    ahs: doc.ahs ?? [],
+    preliminaries: doc.preliminaries ?? [],
+    assumptions: doc.assumptions ?? [],
+    questions: doc.questions ?? [],
+    sources: doc.sources ?? [],
+  }
+}
+
+/** Records an answer, and applies it to the floor area when it sets one. */
+export function answerQuestion(doc: BuildUpDoc, id: string, answer: string): BuildUpDoc {
+  const questions = doc.questions.map((q) =>
+    q.id === id ? { ...q, answer: answer.trim() || undefined } : q,
+  )
+  const answered = questions.find((q) => q.id === id)
+
+  if (answered?.target === 'areaM2') {
+    const m2 = Number((answered.answer ?? '').replace(',', '.').replace(/[^\d.]/g, ''))
+    const valid = Number.isFinite(m2) && m2 > 0
+    return {
+      ...doc,
+      questions,
+      areaM2: valid ? m2 : undefined,
+      areaSource: valid ? 'user' : undefined,
+    }
+  }
+  return { ...doc, questions }
+}
+
+/**
+ * Re-runs the estimate with the answers folded in.
+ *
+ * The document text travels with the bill, so this needs no re-upload. The
+ * user's own corrections — floor area, profit and waste — are carried across,
+ * since they outrank anything the model reads a second time.
+ */
+export async function regenerateWithAnswers(
+  doc: BuildUpDoc,
+  projectId: string,
+  projectName: string,
+): Promise<BuildUpDoc> {
+  if (!doc.sourceText) {
+    throw new Error(
+      'Teks dokumen aslinya tidak tersimpan pada BQ ini. Unggah ulang dokumennya untuk ' +
+        'menghitung dengan jawaban tadi.',
+    )
+  }
+
+  const answers = doc.questions
+    .filter((q) => q.answer)
+    .map((q) => ({ question: q.question, answer: q.answer as string }))
+  if (answers.length === 0) throw new Error('Belum ada pertanyaan yang dijawab.')
+
+  const fresh = await generateBuildUp({
+    projectId,
+    projectName,
+    filename: doc.sources[0] ?? 'dokumen',
+    text: doc.sourceText,
+    answers,
+  })
+
+  return recompute(
+    {
+      ...fresh,
+      sources: doc.sources,
+      areaM2: doc.areaSource === 'user' ? doc.areaM2 : fresh.areaM2,
+      areaSource: doc.areaSource === 'user' ? 'user' : fresh.areaSource,
+      // Keep answered questions visible even once the model stops asking, so
+      // the user can see what the new figures were built on.
+      questions: mergeQuestions(fresh.questions, doc.questions),
+    },
+    doc.markup ?? inferMarkup(fresh),
+  )
+}
+
+/** Fresh questions first, then the answered ones the model dropped. */
+function mergeQuestions(fresh: BuildUpDoc['questions'], previous: BuildUpDoc['questions']) {
+  const answers = new Map(previous.filter((q) => q.answer).map((q) => [q.id, q]))
+  const carried = fresh.map((q) => (q.answer ? q : { ...q, answer: answers.get(q.id)?.answer }))
+  const ids = new Set(carried.map((q) => q.id))
+  return [...carried, ...[...answers.values()].filter((q) => !ids.has(q.id))]
 }
 
 /**
@@ -196,6 +303,15 @@ export function mergeDoc(base: BuildUpDoc, incoming: BuildUpDoc): BuildUpDoc {
     assumptions: [...new Set([...base.assumptions, ...incoming.assumptions])],
     sources: [...new Set([...base.sources, ...incoming.sources])],
     areaM2: base.areaM2 ?? incoming.areaM2,
+    areaSource: base.areaSource ?? incoming.areaSource,
+    areaBreakdown: base.areaBreakdown ?? incoming.areaBreakdown,
+    // The second document often answers what the first left open, so keep the
+    // questions the user already answered and add whatever is still missing.
+    questions: mergeQuestions(incoming.questions, base.questions),
+    sourceText: [base.sourceText, incoming.sourceText]
+      .filter(Boolean)
+      .join('\n\n')
+      .slice(0, KEEP_TEXT),
     ocr: base.ocr || incoming.ocr,
   })
 }

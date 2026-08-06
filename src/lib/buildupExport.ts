@@ -171,6 +171,20 @@ function notesRows(doc: BuildUpDoc): Row[] {
     ['Asumsi yang dipakai'],
   ]
   doc.assumptions.forEach((assumption, i) => rows.push([`${i + 1}.`, assumption]))
+
+  const answered = doc.questions.filter((q) => q.answer)
+  const open = doc.questions.filter((q) => !q.answer)
+
+  if (answered.length > 0) {
+    rows.push([], ['Data yang dikonfirmasi pengguna'])
+    answered.forEach((q) => rows.push([q.question, `${q.answer}${q.unit ? ` ${q.unit}` : ''}`]))
+  }
+  if (open.length > 0) {
+    rows.push([], ['Data yang masih kurang — angka di bawah ini masih berupa asumsi'])
+    open.forEach((q) =>
+      rows.push([q.question, `dampak ${q.impact} · diasumsikan: ${q.assumed || '—'}`]),
+    )
+  }
   return rows
 }
 
@@ -350,6 +364,35 @@ export function exportBuildUpPdf(doc: BuildUpDoc): void {
     ? `<h2>Asumsi</h2><ol>${doc.assumptions.map((a) => `<li>${esc(a)}</li>`).join('')}</ol>`
     : ''
 
+  const answered = doc.questions.filter((q) => q.answer)
+  const open = doc.questions.filter((q) => !q.answer)
+  const qa =
+    (answered.length
+      ? `<h2>Data yang dikonfirmasi pengguna</h2><table>` +
+        answered
+          .map(
+            (q) =>
+              `<tr><td>${esc(q.question)}</td><td>${esc(q.answer ?? '')}${
+                q.unit ? ` ${esc(q.unit)}` : ''
+              }</td></tr>`,
+          )
+          .join('') +
+        `</table>`
+      : '') +
+    (open.length
+      ? `<h2>Data yang masih kurang</h2>` +
+        `<div class="warn">Angka pada bagian yang disebut di bawah masih berupa asumsi.</div>` +
+        `<table><tr><th>Pertanyaan</th><th>Dampak</th><th>Diasumsikan</th></tr>` +
+        open
+          .map(
+            (q) =>
+              `<tr><td>${esc(q.question)}</td><td class="c">${esc(q.impact)}</td>` +
+              `<td>${esc(q.assumed || '—')}</td></tr>`,
+          )
+          .join('') +
+        `</table>`
+      : '')
+
   const head =
     `<h1>${esc(doc.title)}</h1>` +
     `<div class="meta">${esc([doc.project, doc.location, doc.unit].filter(Boolean).join(' · '))}<br />` +
@@ -377,7 +420,8 @@ export function exportBuildUpPdf(doc: BuildUpDoc): void {
       collection +
       sections +
       ahs +
-      assumptions,
+      assumptions +
+      qa,
   )
 }
 
