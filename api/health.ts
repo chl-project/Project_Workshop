@@ -28,8 +28,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // whether one was found in the environment, and which variable held it.
   const { token, source } = blobToken()
   const blob: Record<string, unknown> = { configured: Boolean(token), ok: Boolean(token) }
-  if (source) blob.source = source
-  else blob.hint = BLOB_MISSING_MESSAGE
+  if (source) {
+    blob.source = source
+  } else {
+    blob.hint = BLOB_MISSING_MESSAGE
+    // Names only, never values: says whether the variable is absent from the
+    // running function's environment or present under an unexpected name.
+    blob.blobVarsVisible = Object.keys(process.env)
+      .filter((n) => n.includes('BLOB') || n.endsWith('_READ_WRITE_TOKEN'))
+      .sort()
+  }
 
   const ai = {
     configured: Boolean(process.env.OPENAI_API_KEY),
@@ -38,10 +46,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const apiKey = { enforced: keyEnforced() }
 
+  // Identifies the deployment, so a stale build is obvious rather than looking
+  // like a configuration problem.
+  const build = {
+    commit: (process.env.VERCEL_GIT_COMMIT_SHA ?? 'unknown').slice(0, 7),
+    env: process.env.VERCEL_ENV ?? 'unknown',
+  }
+
   const ok = neon.ok === true && blob.configured === true
   return res.status(ok ? 200 : 503).json({
     ok,
     time: new Date().toISOString(),
+    build,
     neon,
     blob,
     ai,
