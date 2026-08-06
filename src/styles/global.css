@@ -1,0 +1,111 @@
+/* Base + pseudo-state rules ported from the prototype's <helmet> block.
+   Hover styles live here because the design medium expressed them with a
+   `style-hover` attribute the DC runtime turned into real CSS. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f5f5f1;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: #1b1d18;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #5f6f3c;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #4a5730;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d8d8d0;
+  border-radius: 6px;
+  border: 3px solid #f5f5f1;
+}
+
+@keyframes barfill {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* ---- hover states ------------------------------------------------------ */
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.proj-btn:hover {
+  border-color: #c9c9c0 !important;
+}
+
+.proj-option:hover {
+  background: #f7f7f2;
+}
+
+.module-card:hover {
+  border-color: #b9c393 !important;
+}
+
+.btn-outline:hover {
+  background: #f2f4ea;
+}
+
+.btn-primary:hover {
+  background: #4a5730 !important;
+}
+
+.btn-ghost:hover {
+  border-color: #c9c9c0 !important;
+}
+
+.btn-tint:hover {
+  background: #e9eddb !important;
+}
+
+.row-hover:hover {
+  background: #fafaf6;
+}
+
+.row-hover-amber:hover {
+  background: #fdf8ea;
+}
+
+.row-hover-red:hover {
+  background: #fbefeb;
+}
+
+.row-hover-green:hover {
+  background: #f6f8ef;
+}
+
+/* ---- form controls ----------------------------------------------------- */
+
+input[type='range'] {
+  accent-color: #5f6f3c;
+}
+
+input[type='checkbox'] {
+  accent-color: #5f6f3c;
+}
