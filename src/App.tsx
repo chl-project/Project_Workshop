@@ -12,8 +12,10 @@ import { useResource } from '@/hooks/useResource'
 import { BiayaMutuWaktu } from '@/screens/BiayaMutuWaktu'
 import { BqRab } from '@/screens/BqRab'
 import { BuildUpCost } from '@/screens/BuildUpCost'
+import { ChatBot } from '@/screens/ChatBot'
 import { Dashboard } from '@/screens/Dashboard'
 import { GambarKomposit } from '@/screens/GambarKomposit'
+import { Knowledge } from '@/screens/Knowledge'
 import { Spesifikasi } from '@/screens/Spesifikasi'
 import { SettingsProvider, useSettings } from '@/state/settings'
 import { color, layout } from '@/theme/tokens'
@@ -26,6 +28,8 @@ const titles: Record<ScreenId, string> = {
   bmw: 'Biaya–Mutu–Waktu',
   gbr: 'Gambar Komposit',
   bq: 'BQ / RAB',
+  know: 'Pengetahuan',
+  chat: 'Asisten AI',
 }
 
 export default function App() {
@@ -150,5 +154,9 @@ function Screen({
           onNavigate={onNavigate}
         />
       )
+    case 'know':
+      return <Knowledge projectId={projectId} onNavigate={onNavigate} />
+    case 'chat':
+      return <ChatBot projectId={projectId} onNavigate={onNavigate} />
   }
 }

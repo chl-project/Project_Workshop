@@ -78,7 +78,20 @@ api/
   store/[...path].ts    GET/PUT the JSONB store, keyed by the REST paths in `keys`
   documents.ts          GET list / POST upload (Blob file + Neon metadata row)
   ve-suggest.ts         POST — OpenAI-generated value-engineering proposals
+  knowledge.ts          GET/POST/DELETE — the RAG knowledge base
+  chat.ts               POST — assistant answering over knowledge + app data
 ```
+
+**Assistant (RAG).** Two screens sit under the sidebar's "ASISTEN" group.
+*Pengetahuan* ingests documents: the browser extracts text (PDF via pdf.js,
+loaded lazily; plus TXT/MD/CSV/JSON, or pasted text), the server splits it into
+overlapping chunks, embeds them with `text-embedding-3-small`, and stores them
+in `knowledge_chunks`. Embeddings are kept as JSON rather than `pgvector`, so no
+database extension is required; similarity is scored in the function.
+*Asisten AI* answers a question from two contexts at once — the top-matching
+knowledge chunks **and** the project's own rows from `store`, so "berapa total
+RAB?" is answered from live app data rather than the documents. Each reply shows
+which sources it drew on.
 
 **How the data gets there.** The store is a `store(path, value jsonb)` table
 whose keys are exactly the endpoint paths already in `src/api/index.ts`

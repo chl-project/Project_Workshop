@@ -56,5 +56,33 @@ export async function ensureSchema(): Promise<void> {
     )
   `
   await sql`create index if not exists documents_project_idx on documents (project_id)`
+
+  /* Knowledge base for the RAG assistant: one row per source document, and one
+     row per embedded chunk. Embeddings are stored as JSON so the setup works on
+     any Postgres without requiring the pgvector extension; similarity is scored
+     in the function. */
+  await sql`
+    create table if not exists knowledge_docs (
+      id         text primary key,
+      project_id text not null,
+      title      text not null,
+      source     text,
+      chars      integer not null default 0,
+      chunks     integer not null default 0,
+      created_at timestamptz not null default now()
+    )
+  `
+  await sql`
+    create table if not exists knowledge_chunks (
+      id         text primary key,
+      doc_id     text not null references knowledge_docs(id) on delete cascade,
+      project_id text not null,
+      idx        integer not null,
+      content    text not null,
+      embedding  jsonb not null
+    )
+  `
+  await sql`create index if not exists knowledge_docs_project_idx on knowledge_docs (project_id)`
+  await sql`create index if not exists knowledge_chunks_project_idx on knowledge_chunks (project_id)`
   schemaReady = true
 }

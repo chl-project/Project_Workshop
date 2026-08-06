@@ -2,7 +2,7 @@ import type { ChipTone } from '@/theme/styles'
 
 /* ------------------------------------------------------------------ shared */
 
-export type ScreenId = 'dash' | 'spek' | 'cost' | 'bmw' | 'gbr' | 'bq'
+export type ScreenId = 'dash' | 'spek' | 'cost' | 'bmw' | 'gbr' | 'bq' | 'know' | 'chat'
 
 export interface Project {
   id: string
