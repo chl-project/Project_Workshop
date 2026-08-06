@@ -24,17 +24,8 @@ import {
 } from '@/components/primitives'
 import { downloadExcel } from '@/lib/export'
 import { useResource } from '@/hooks/useResource'
-import {
-  btnPrimary,
-  card,
-  cardClipped,
-  screenSub,
-  screenTitle,
-  table,
-  th,
-  theadRow,
-  type ChipTone,
-} from '@/theme/styles'
+import { useViewport } from '@/hooks/useViewport'
+import { btnPrimary, card, cardClipped, screenSub, screenTitle, scrollX, splitGrid, table, th, theadRow, type ChipTone } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { MaterialRow, MaterialStatus, ScreenId, SpecData, SpecScreenState } from '@/types'
 
@@ -124,6 +115,7 @@ export function Spesifikasi({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: 20,
           marginBottom: 18,
         }}
@@ -139,6 +131,7 @@ export function Spesifikasi({
           style={{
             display: isSample ? 'flex' : 'none',
             alignItems: 'center',
+            flexWrap: 'wrap',
             gap: 6,
             background: color.segmentTrack,
             borderRadius: 8,
@@ -336,6 +329,7 @@ function SpecTable({
   projectId: string
   onNavigate: (s: ScreenId) => void
 }) {
+  const { isCompact } = useViewport()
   const fileInput = useRef<HTMLInputElement>(null)
   /* The table renders from local state so rows read out of an uploaded
      document appear immediately; it re-syncs whenever the endpoint reloads. */
@@ -555,12 +549,13 @@ function SpecTable({
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, alignItems: 'start' }}>
+      <div style={splitGrid(320, isCompact)}>
         <div style={cardClipped}>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
+              flexWrap: 'wrap',
               gap: 12,
               padding: '12px 15px',
               borderBottom: `1px solid ${color.borderSoft}`,
@@ -654,39 +649,41 @@ function SpecTable({
             </button>
           </div>
 
-          <table style={table}>
-            <thead>
-              <tr style={theadRow}>
-                <th style={th({ padding: '9px 14px' })}>DIVISI</th>
-                <th style={th()}>ITEM</th>
-                <th style={th()}>SPESIFIKASI</th>
-                <th style={th()}>STANDAR</th>
-                <th style={th({ textAlign: 'right' })}>VOLUME</th>
-                <th style={th({ padding: '9px 14px' })}>STATUS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    style={{
-                      padding: '34px 16px',
-                      textAlign: 'center',
-                      font: sans('400 12px/1.65'),
-                      color: color.muted,
-                    }}
-                  >
-                    {spec.materials.length === 0
-                      ? 'Belum ada material. Unggah RKS atau daftar material lewat tombol “Upload dokumen” di atas — isinya akan dibaca dan masuk ke tabel ini.'
-                      : 'Tidak ada item yang cocok dengan pencarian atau filter.'}
-                  </td>
+          <div style={scrollX}>
+            <table style={table}>
+              <thead>
+                <tr style={theadRow}>
+                  <th style={th({ padding: '9px 14px' })}>DIVISI</th>
+                  <th style={th()}>ITEM</th>
+                  <th style={th()}>SPESIFIKASI</th>
+                  <th style={th()}>STANDAR</th>
+                  <th style={th({ textAlign: 'right' })}>VOLUME</th>
+                  <th style={th({ padding: '9px 14px' })}>STATUS</th>
                 </tr>
-              ) : (
-                filtered.map((row) => <MaterialTr key={row.id} row={row} />)
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      style={{
+                        padding: '34px 16px',
+                        textAlign: 'center',
+                        font: sans('400 12px/1.65'),
+                        color: color.muted,
+                      }}
+                    >
+                      {spec.materials.length === 0
+                        ? 'Belum ada material. Unggah RKS atau daftar material lewat tombol “Upload dokumen” di atas — isinya akan dibaca dan masuk ke tabel ini.'
+                        : 'Tidak ada item yang cocok dengan pencarian atau filter.'}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((row) => <MaterialTr key={row.id} row={row} />)
+                )}
+              </tbody>
+            </table>
+          </div>
           <div
             style={{
               padding: '11px 15px',

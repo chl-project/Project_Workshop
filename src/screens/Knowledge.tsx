@@ -7,7 +7,7 @@ import {
   type KnowledgeDoc,
 } from '@/lib/knowledge'
 import { readDocument } from '@/lib/ocr'
-import { btnGhost, btnPrimary, card, cardClipped, screenSub, screenTitle } from '@/theme/styles'
+import { autoGrid, btnGhost, btnPrimary, card, cardClipped, screenSub, screenTitle } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { ScreenId } from '@/types'
 
@@ -107,6 +107,7 @@ export function Knowledge({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: 20,
           marginBottom: 18,
         }}
@@ -131,7 +132,7 @@ export function Knowledge({
       {error && <Banner tone="red">{error}</Banner>}
       {notice && <Banner tone="green">{notice}</Banner>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div style={{ ...autoGrid(280, 16), marginBottom: 16 }}>
         <div style={{ ...card, padding: '18px 20px' }}>
           <div style={{ font: sans('600 13px'), marginBottom: 4 }}>Unggah berkas</div>
           <div style={{ font: sans('400 11.5px/1.6'), color: color.muted, marginBottom: 14 }}>

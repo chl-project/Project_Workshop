@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { fetchProjects, keys } from '@/api'
 import { Header, type ProjectAction } from '@/components/Header'
 import { DeleteProjectDialog, ProjectDialog } from '@/components/ProjectDialog'
@@ -18,6 +18,7 @@ import { VeDrawer } from '@/drawers/VeDrawer'
 import { VolumeDrawer } from '@/drawers/VolumeDrawer'
 import type { DrawerRequest } from '@/drawers/Drawer'
 import { useResource } from '@/hooks/useResource'
+import { useViewport } from '@/hooks/useViewport'
 import { BiayaMutuWaktu } from '@/screens/BiayaMutuWaktu'
 import { BqRab } from '@/screens/BqRab'
 import { BuildUpCost } from '@/screens/BuildUpCost'
@@ -27,7 +28,7 @@ import { GambarKomposit } from '@/screens/GambarKomposit'
 import { Knowledge } from '@/screens/Knowledge'
 import { Spesifikasi } from '@/screens/Spesifikasi'
 import { SettingsProvider, useSettings } from '@/state/settings'
-import { color, layout } from '@/theme/tokens'
+import { color, layout, sans } from '@/theme/tokens'
 import type { Project, ScreenId } from '@/types'
 
 const titles: Record<ScreenId, string> = {
@@ -56,7 +57,9 @@ function Studio() {
     fetchProjects,
   )
 
+  const { isPhone, isNarrow } = useViewport()
   const [screen, setScreen] = useState<ScreenId>('dash')
+  const [navOpen, setNavOpen] = useState(false)
   const [projectMenuOpen, setProjectMenuOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [drawer, setDrawer] = useState<DrawerRequest>(null)
@@ -69,7 +72,21 @@ function Studio() {
   const navigate = useCallback((next: ScreenId) => {
     setScreen(next)
     setProjectMenuOpen(false)
+    // On a phone the sidebar covers the screen it just navigated to.
+    setNavOpen(false)
   }, [])
+
+  // Widening the window back to a desktop layout leaves no overlay to close.
+  useEffect(() => {
+    if (!isNarrow) setNavOpen(false)
+  }, [isNarrow])
+
+  useEffect(() => {
+    if (!navOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setNavOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navOpen])
 
   const closeDrawer = useCallback(() => setDrawer(null), [])
 
@@ -104,8 +121,31 @@ function Studio() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: color.appBg }}>
-      <Sidebar screen={screen} onNavigate={navigate} />
+    <div
+      style={{
+        display: 'flex',
+        // Mobile browsers report 100vh as the height without their chrome, so
+        // the bottom of the app sits under the address bar. `dvh` tracks it.
+        height: '100dvh',
+        overflow: 'hidden',
+        background: color.appBg,
+      }}
+    >
+      {isNarrow ? (
+        navOpen && (
+          <>
+            <div
+              onClick={() => setNavOpen(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(27,29,24,.34)', zIndex: 70 }}
+            />
+            <div style={{ position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 71 }}>
+              <Sidebar screen={screen} onNavigate={navigate} onClose={() => setNavOpen(false)} />
+            </div>
+          </>
+        )
+      ) : (
+        <Sidebar screen={screen} onNavigate={navigate} />
+      )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Header
@@ -120,10 +160,29 @@ function Studio() {
           open={projectMenuOpen}
           onToggle={() => setProjectMenuOpen((v) => !v)}
           onClose={() => setProjectMenuOpen(false)}
+          onOpenNav={isNarrow ? () => setNavOpen(true) : undefined}
         />
 
-        <main style={{ flex: 1, overflow: 'auto', padding: '26px 30px 60px' }}>
+        <main
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: isPhone ? '16px 14px 80px' : isNarrow ? '20px 20px 70px' : '26px 30px 60px',
+          }}
+        >
           <div style={{ maxWidth: layout.contentMaxWidth, margin: '0 auto' }}>
+            {isPhone && (
+              <h1
+                style={{
+                  margin: '0 0 14px',
+                  font: sans('600 17px/1.25'),
+                  letterSpacing: '-.02em',
+                  color: color.ink,
+                }}
+              >
+                {titles[screen]}
+              </h1>
+            )}
             {!projectId ? (
               <LoadingPanel label="Memuat proyek…" />
             ) : (

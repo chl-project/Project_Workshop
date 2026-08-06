@@ -38,6 +38,33 @@ src/
   lib/buildupExport.ts  the bill as .xlsx / PDF / CSV / JSON
 ```
 
+## Responsive layout
+
+The prototype was drawn at desktop 1440 and every screen is built from inline
+style objects, which a stylesheet media query cannot reach — a CSS rule loses
+to a `style` attribute. Breakpoints are therefore read in JS
+(`hooks/useViewport.ts`) and fed back into the same style objects, so each
+screen's layout still reads in one place. Three decisions, nothing finer:
+
+| Width | What changes |
+|-------|--------------|
+| < 1160 | a screen's right-hand panel stacks under the main column (`splitGrid`) |
+| < 900 | the sidebar becomes an overlay behind a ☰ button in the header |
+| < 640 | phone: tighter padding, the screen title moves from the header into the page, the date is dropped |
+
+Supporting pieces: `scrollX` wraps tables that cannot usefully narrow — a bill
+has eleven numeric columns, so it scrolls inside its card rather than stretching
+the page — and `autoGrid` reflows card grids instead of holding a fixed column
+count. `html, body { overflow-x: hidden }` is the backstop so a stray wide
+element can never pan the whole layout. The one `!important` in the stylesheet
+raises text inputs to 16px on small screens, because iOS zooms the page in on
+focus below that and the inline fonts cannot be beaten any other way.
+
+Checked by driving the app at 375, 390, 820, 1280 and 1440 across all eight
+screens and asserting that nothing overflows its container — which is how the
+Dashboard's `gridColumn: span 2` was caught conjuring a second column once the
+grid collapsed to one.
+
 ## Price basis
 
 `src/data/priceBasis.ts` is the single source of truth: **AHSP 2026 · DKI

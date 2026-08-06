@@ -14,6 +14,41 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Nothing may push the page sideways: a stray wide table or a long unbroken
+   figure would otherwise let the whole layout pan on a phone. Wide content
+   scrolls inside its own container instead (see `scrollX` in theme/styles). */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+/* Inputs do not inherit the page font, and iOS zooms into any field under
+   16px on focus — so touch sizes are set on the controls themselves. */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+}
+
+/* iOS zooms the whole page in when a field under 16px takes focus, and the
+   user has to pinch back out every time. The screens set their fonts with
+   inline `font` shorthands, which a plain rule cannot outrank — hence the
+   override. Scoped to text entry on small screens only. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 a {
   color: #5f6f3c;
   text-decoration: none;

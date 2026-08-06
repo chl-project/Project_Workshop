@@ -140,7 +140,9 @@ function QuestionRow({
       }}
     >
       <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <span style={{ font: sans('500 12.5px'), flex: 1, minWidth: 260 }}>{q.question}</span>
+        <span style={{ font: sans('500 12.5px'), flex: 1, minWidth: 'min(260px, 100%)' }}>
+          {q.question}
+        </span>
         <Chip tone={q.answer ? 'green' : impactTone[q.impact]}>
           {q.answer ? 'terjawab' : `dampak ${q.impact}`}
         </Chip>
@@ -161,7 +163,7 @@ function QuestionRow({
           <select
             value={value}
             onChange={(e) => onAnswer(q.id, e.target.value)}
-            style={{ ...fieldStyle, width: 'auto', minWidth: 220 }}
+            style={{ ...fieldStyle, width: '100%', maxWidth: 320, minWidth: 0 }}
           >
             <option value="">— pilih —</option>
             {q.options.map((opt) => (
@@ -185,7 +187,12 @@ function QuestionRow({
                 e.currentTarget.blur()
               }
             }}
-            style={{ ...fieldStyle, width: q.kind === 'number' ? 120 : 320 }}
+            style={{
+              ...fieldStyle,
+              width: q.kind === 'number' ? 120 : '100%',
+              maxWidth: 320,
+              minWidth: 0,
+            }}
           />
         )}
         {q.unit && <span style={{ font: mono('400 11px'), color: color.faint }}>{q.unit}</span>}

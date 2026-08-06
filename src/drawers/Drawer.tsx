@@ -40,7 +40,9 @@ export function Drawer({
           top: 0,
           right: 0,
           bottom: 0,
-          width: layout.drawerWidth,
+          // Never wider than the viewport, and leaves a strip of the page
+          // visible so the overlay still reads as something to tap away.
+          width: `min(${layout.drawerWidth}px, 100vw - 32px)`,
           background: color.surface,
           borderLeft: `1px solid ${color.border}`,
           boxShadow: '-14px 0 40px rgba(0,0,0,.10)',

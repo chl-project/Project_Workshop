@@ -3,6 +3,7 @@ import { fetchBmw, keys } from '@/api'
 import { htmlTable, printReport } from '@/lib/export'
 import { ErrorPanel, LoadingPanel, NoDataPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
+import { useViewport } from '@/hooks/useViewport'
 import {
   formatScore,
   radarPoints,
@@ -12,7 +13,7 @@ import {
   type WeightKey,
   type Weights,
 } from '@/lib/scenario'
-import { btnGhost, btnPrimary, card, cardClipped, screenSub, screenTitle, table } from '@/theme/styles'
+import { btnGhost, btnPrimary, card, cardClipped, screenSub, screenTitle, scrollX, splitGrid, table } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { BmwData, Scenario, ScenarioKey, ScreenId } from '@/types'
 
@@ -41,6 +42,7 @@ export function BiayaMutuWaktu({
   projectId: string
   onNavigate: (s: ScreenId) => void
 }) {
+  const { isCompact } = useViewport()
   const { data, loading, error } = useResource<{ data: BmwData; defaultWeights: Weights }>(
     keys.bmw(projectId),
     () => fetchBmw(projectId),
@@ -101,6 +103,7 @@ export function BiayaMutuWaktu({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: 20,
           marginBottom: 16,
         }}
@@ -121,140 +124,142 @@ export function BiayaMutuWaktu({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, alignItems: 'start' }}>
+      <div style={splitGrid(320, isCompact)}>
         <div style={cardClipped}>
-          <table style={table}>
-            <thead>
-              <tr style={{ background: color.surfaceMuted }}>
-                <th
-                  style={{
-                    textAlign: 'left',
-                    padding: '12px 16px',
-                    font: mono('500 10.5px'),
-                    letterSpacing: '.05em',
-                    color: color.muted,
-                    borderBottom: `1px solid ${color.borderSoft}`,
-                    width: 150,
-                  }}
-                >
-                  ASPEK
-                </th>
-                {scenarios.map((s) => (
+          <div style={scrollX}>
+            <table style={table}>
+              <thead>
+                <tr style={{ background: color.surfaceMuted }}>
                   <th
-                    key={s.key}
                     style={{
                       textAlign: 'left',
-                      padding: '12px 12px',
+                      padding: '12px 16px',
+                      font: mono('500 10.5px'),
+                      letterSpacing: '.05em',
+                      color: color.muted,
                       borderBottom: `1px solid ${color.borderSoft}`,
-                      background: cellBg(s),
+                      width: 150,
                     }}
                   >
-                    <div style={{ font: sans('600 13px') }}>
-                      {s.name}
-                      {s.isBase && (
-                        <span style={{ font: mono('400 10px'), color: color.green }}> DASAR</span>
-                      )}
-                    </div>
-                    <div style={{ font: mono('400 10.5px'), color: color.faint, marginTop: 2 }}>
-                      {s.subtitle}
-                    </div>
+                    ASPEK
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr style={{ borderBottom: `1px solid ${color.rowLine}` }}>
-                <td style={aspectCell}>BIAYA</td>
-                {scenarios.map((s) => (
-                  <td key={s.key} style={{ padding: 12, verticalAlign: 'top', background: cellBg(s) }}>
-                    <div style={{ font: mono('600 15px') }}>{s.cost.total}</div>
-                    <div style={{ font: mono('400 11.5px/1.7'), color: color.muted, marginTop: 4 }}>
-                      {s.cost.perM2}
+                  {scenarios.map((s) => (
+                    <th
+                      key={s.key}
+                      style={{
+                        textAlign: 'left',
+                        padding: '12px 12px',
+                        borderBottom: `1px solid ${color.borderSoft}`,
+                        background: cellBg(s),
+                      }}
+                    >
+                      <div style={{ font: sans('600 13px') }}>
+                        {s.name}
+                        {s.isBase && (
+                          <span style={{ font: mono('400 10px'), color: color.green }}> DASAR</span>
+                        )}
+                      </div>
+                      <div style={{ font: mono('400 10.5px'), color: color.faint, marginTop: 2 }}>
+                        {s.subtitle}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ borderBottom: `1px solid ${color.rowLine}` }}>
+                  <td style={aspectCell}>BIAYA</td>
+                  {scenarios.map((s) => (
+                    <td key={s.key} style={{ padding: 12, verticalAlign: 'top', background: cellBg(s) }}>
+                      <div style={{ font: mono('600 15px') }}>{s.cost.total}</div>
+                      <div style={{ font: mono('400 11.5px/1.7'), color: color.muted, marginTop: 4 }}>
+                        {s.cost.perM2}
+                        <br />
+                        <span style={{ color: s.cost.deltaColor }}>{s.cost.delta}</span>
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+                <tr style={{ borderBottom: `1px solid ${color.rowLine}` }}>
+                  <td style={aspectCell}>MUTU</td>
+                  {scenarios.map((s) => (
+                    <td
+                      key={s.key}
+                      style={{
+                        padding: 12,
+                        verticalAlign: 'top',
+                        background: cellBg(s),
+                        font: sans('400 11.5px/1.7'),
+                      }}
+                    >
+                      {s.quality.map((line, i) => (
+                        <span key={line} style={{ color: i === s.quality.length - 1 ? s.qualityFlagColor : undefined }}>
+                          {line}
+                          <br />
+                        </span>
+                      ))}
+                    </td>
+                  ))}
+                </tr>
+                <tr style={{ borderBottom: `1px solid ${color.rowLine}` }}>
+                  <td style={aspectCell}>WAKTU</td>
+                  {scenarios.map((s) => (
+                    <td
+                      key={s.key}
+                      style={{
+                        padding: 12,
+                        verticalAlign: 'top',
+                        background: cellBg(s),
+                        font: sans('400 11.5px/1.7'),
+                      }}
+                    >
+                      <span style={{ font: mono('600 13px') }}>{s.time.weeks}</span>
                       <br />
-                      <span style={{ color: s.cost.deltaColor }}>{s.cost.delta}</span>
-                    </div>
-                  </td>
-                ))}
-              </tr>
-              <tr style={{ borderBottom: `1px solid ${color.rowLine}` }}>
-                <td style={aspectCell}>MUTU</td>
-                {scenarios.map((s) => (
+                      {s.time.lines.map((line) => (
+                        <span key={line}>
+                          {line}
+                          <br />
+                        </span>
+                      ))}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <td style={aspectCell}>RISIKO</td>
+                  {scenarios.map((s) => (
+                    <td
+                      key={s.key}
+                      style={{
+                        padding: 12,
+                        verticalAlign: 'top',
+                        background: cellBg(s),
+                        font: sans('400 11.5px/1.7'),
+                        color: color.muted,
+                      }}
+                    >
+                      {s.risk}
+                    </td>
+                  ))}
+                </tr>
+                <tr style={{ background: color.surfaceMuted, borderTop: `1px solid ${color.border}` }}>
                   <td
-                    key={s.key}
                     style={{
-                      padding: 12,
-                      verticalAlign: 'top',
-                      background: cellBg(s),
-                      font: sans('400 11.5px/1.7'),
-                    }}
-                  >
-                    {s.quality.map((line, i) => (
-                      <span key={line} style={{ color: i === s.quality.length - 1 ? s.qualityFlagColor : undefined }}>
-                        {line}
-                        <br />
-                      </span>
-                    ))}
-                  </td>
-                ))}
-              </tr>
-              <tr style={{ borderBottom: `1px solid ${color.rowLine}` }}>
-                <td style={aspectCell}>WAKTU</td>
-                {scenarios.map((s) => (
-                  <td
-                    key={s.key}
-                    style={{
-                      padding: 12,
-                      verticalAlign: 'top',
-                      background: cellBg(s),
-                      font: sans('400 11.5px/1.7'),
-                    }}
-                  >
-                    <span style={{ font: mono('600 13px') }}>{s.time.weeks}</span>
-                    <br />
-                    {s.time.lines.map((line) => (
-                      <span key={line}>
-                        {line}
-                        <br />
-                      </span>
-                    ))}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td style={aspectCell}>RISIKO</td>
-                {scenarios.map((s) => (
-                  <td
-                    key={s.key}
-                    style={{
-                      padding: 12,
-                      verticalAlign: 'top',
-                      background: cellBg(s),
-                      font: sans('400 11.5px/1.7'),
+                      padding: '13px 16px',
+                      font: mono('600 11px'),
                       color: color.muted,
                     }}
                   >
-                    {s.risk}
+                    SKOR
                   </td>
-                ))}
-              </tr>
-              <tr style={{ background: color.surfaceMuted, borderTop: `1px solid ${color.border}` }}>
-                <td
-                  style={{
-                    padding: '13px 16px',
-                    font: mono('600 11px'),
-                    color: color.muted,
-                  }}
-                >
-                  SKOR
-                </td>
-                {scenarios.map((s) => (
-                  <td key={s.key} style={{ padding: '13px 12px', background: cellBg(s) }}>
-                    <div style={{ font: mono('600 19px') }}>{formatScore(score(s, w))}</div>
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
+                  {scenarios.map((s) => (
+                    <td key={s.key} style={{ padding: '13px 12px', background: cellBg(s) }}>
+                      <div style={{ font: mono('600 19px') }}>{formatScore(score(s, w))}</div>
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

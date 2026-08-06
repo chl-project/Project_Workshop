@@ -4,7 +4,8 @@ import { htmlTable, printReport } from '@/lib/export'
 import { floors, lockTooltip } from '@/data/komposit'
 import { Chip, ErrorPanel, LoadingPanel, NoDataPanel, Segmented } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
-import { btnGhost, card, cardClipped, chip, screenSub, screenTitle, table, th, theadRow } from '@/theme/styles'
+import { useViewport } from '@/hooks/useViewport'
+import { autoGrid, btnGhost, card, cardClipped, chip, screenSub, screenTitle, scrollX, splitGrid, table, th, theadRow } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { ChipTone } from '@/theme/styles'
 import type { ClashLevel, CompositeData, ScreenId } from '@/types'
@@ -40,6 +41,7 @@ export function GambarKomposit({
   onOpenClash: (no: string) => void
   onNavigate: (s: ScreenId) => void
 }) {
+  const { isCompact } = useViewport()
   const { data, loading, error } = useResource<CompositeData>(keys.komposit(projectId), () =>
     fetchKomposit(projectId),
   )
@@ -91,6 +93,7 @@ export function GambarKomposit({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: 20,
           marginBottom: 16,
         }}
@@ -124,7 +127,7 @@ export function GambarKomposit({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 14 }}>
+      <div style={{ ...autoGrid(150, 12), marginBottom: 14 }}>
         {data.disciplines.map((d) => (
           <div
             key={d.name}
@@ -157,13 +160,7 @@ export function GambarKomposit({
       </div>
 
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 300px',
-          gap: 14,
-          alignItems: 'start',
-          marginBottom: 14,
-        }}
+        style={{ ...splitGrid(300, isCompact, 14), marginBottom: 14 }}
       >
         <div style={cardClipped}>
           <div
@@ -350,7 +347,7 @@ export function GambarKomposit({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 14, alignItems: 'start' }}>
+      <div style={splitGrid(300, isCompact, 14)}>
         <div style={cardClipped}>
           <div
             style={{
@@ -366,47 +363,49 @@ export function GambarKomposit({
               {data.clashTotal} temuan · klik untuk zoom ke titik
             </span>
           </div>
-          <table style={table}>
-            <thead>
-              <tr style={theadRow}>
-                <th style={th({ padding: '9px 15px' })}>NO</th>
-                <th style={th()}>LOKASI</th>
-                <th style={th()}>DISIPLIN</th>
-                <th style={th()}>MASALAH</th>
-                <th style={th()}>TINGKAT</th>
-                <th style={th()}>PIC</th>
-                <th style={th({ padding: '9px 15px' })}>STATUS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.clashes.map((row, i) => (
-                <tr
-                  key={row.no}
-                  className="row-hover"
-                  onClick={() => onOpenClash(row.no)}
-                  style={{
-                    borderBottom:
-                      i === data.clashes.length - 1 ? undefined : `1px solid ${color.rowLine}`,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <td style={{ padding: '10px 15px', font: mono('500 12px') }}>{row.no}</td>
-                  <td style={{ padding: '10px 8px', font: mono('400 11.5px') }}>{row.location}</td>
-                  <td style={{ padding: '10px 8px', color: color.muted }}>{row.disciplines}</td>
-                  <td style={{ padding: '10px 8px' }}>{row.problem}</td>
-                  <td style={{ padding: '10px 8px' }}>
-                    <span style={chip(levelTone[row.level])}>{row.level}</span>
-                  </td>
-                  <td style={{ padding: '10px 8px', color: color.muted }}>{row.pic}</td>
-                  <td style={{ padding: '10px 15px' }}>
-                    <span style={{ font: mono('500 10.5px'), color: row.statusColor }}>
-                      {row.status}
-                    </span>
-                  </td>
+          <div style={scrollX}>
+            <table style={table}>
+              <thead>
+                <tr style={theadRow}>
+                  <th style={th({ padding: '9px 15px' })}>NO</th>
+                  <th style={th()}>LOKASI</th>
+                  <th style={th()}>DISIPLIN</th>
+                  <th style={th()}>MASALAH</th>
+                  <th style={th()}>TINGKAT</th>
+                  <th style={th()}>PIC</th>
+                  <th style={th({ padding: '9px 15px' })}>STATUS</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.clashes.map((row, i) => (
+                  <tr
+                    key={row.no}
+                    className="row-hover"
+                    onClick={() => onOpenClash(row.no)}
+                    style={{
+                      borderBottom:
+                        i === data.clashes.length - 1 ? undefined : `1px solid ${color.rowLine}`,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <td style={{ padding: '10px 15px', font: mono('500 12px') }}>{row.no}</td>
+                    <td style={{ padding: '10px 8px', font: mono('400 11.5px') }}>{row.location}</td>
+                    <td style={{ padding: '10px 8px', color: color.muted }}>{row.disciplines}</td>
+                    <td style={{ padding: '10px 8px' }}>{row.problem}</td>
+                    <td style={{ padding: '10px 8px' }}>
+                      <span style={chip(levelTone[row.level])}>{row.level}</span>
+                    </td>
+                    <td style={{ padding: '10px 8px', color: color.muted }}>{row.pic}</td>
+                    <td style={{ padding: '10px 15px' }}>
+                      <span style={{ font: mono('500 10.5px'), color: row.statusColor }}>
+                        {row.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div style={{ ...card, padding: '15px 16px' }}>

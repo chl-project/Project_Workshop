@@ -6,7 +6,8 @@ import { AiBanner } from '@/components/AiBanner'
 import { Field, Modal } from '@/components/Modal'
 import { Chip, ErrorPanel, LoadingPanel, NoDataPanel, ProgressStep } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
-import { btnGhost, btnPrimary, card, cardClipped, table, th, theadRow } from '@/theme/styles'
+import { useViewport } from '@/hooks/useViewport'
+import { btnGhost, btnPrimary, card, cardClipped, scrollX, splitGrid, table, th, theadRow } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { ChipTone } from '@/theme/styles'
 import type { BqData, BqDivision, Confidence, RecapRow, ScreenId } from '@/types'
@@ -201,7 +202,15 @@ export function BqRab({
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 14, borderBottom: `1px solid ${color.border}` }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 4,
+          marginBottom: 14,
+          borderBottom: `1px solid ${color.border}`,
+        }}
+      >
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -221,7 +230,7 @@ export function BqRab({
           </button>
         ))}
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', gap: 8, paddingBottom: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 6 }}>
           <button
             type="button"
             className="btn-tint"
@@ -317,47 +326,50 @@ function BqTab({
   onToggle: (no: number) => void
   onOpenVolume: (itemNo: string) => void
 }) {
+  const { isCompact } = useViewport()
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 290px', gap: 14, alignItems: 'start' }}>
+    <div style={splitGrid(290, isCompact, 14)}>
       <div style={cardClipped}>
-        <table style={table}>
-          <thead>
-            <tr style={theadRow}>
-              <th style={th({ padding: '9px 14px', width: 58 })}>NO.</th>
-              <th style={th()}>URAIAN PEKERJAAN</th>
-              <th style={th({ width: 52 })}>SAT.</th>
-              <th style={th({ textAlign: 'right', width: 92 })}>VOLUME</th>
-              <th style={th({ textAlign: 'right', width: 104 })}>HARGA SAT.</th>
-              <th style={th({ textAlign: 'right', width: 126 })}>JUMLAH HARGA</th>
-              <th style={th({ padding: '9px 14px', width: 118 })}>KEYAKINAN</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.divisions.map((div) => (
-              <DivisionRows
-                key={div.no}
-                division={div}
-                open={Boolean(open[div.no])}
-                onToggle={() => onToggle(div.no)}
-                onOpenVolume={onOpenVolume}
-              />
-            ))}
-          </tbody>
-          <tfoot>
-            <tr style={{ position: 'sticky', bottom: 0, background: color.sidebarDark, color: '#F1F2EB' }}>
-              <td style={{ padding: '13px 14px' }} colSpan={5}>
-                <span style={{ font: sans('600 12.5px') }}>{data.grandTotal.label}</span>
-                <span style={{ font: mono('400 11px'), color: color.onDarkMuted, marginLeft: 10 }}>
-                  {data.grandTotal.meta}
-                </span>
-              </td>
-              <td style={{ padding: '13px 8px', textAlign: 'right', font: mono('600 14px') }}>
-                {data.grandTotal.amount}
-              </td>
-              <td style={{ padding: '13px 14px' }} />
-            </tr>
-          </tfoot>
-        </table>
+        <div style={scrollX}>
+          <table style={table}>
+            <thead>
+              <tr style={theadRow}>
+                <th style={th({ padding: '9px 14px', width: 58 })}>NO.</th>
+                <th style={th()}>URAIAN PEKERJAAN</th>
+                <th style={th({ width: 52 })}>SAT.</th>
+                <th style={th({ textAlign: 'right', width: 92 })}>VOLUME</th>
+                <th style={th({ textAlign: 'right', width: 104 })}>HARGA SAT.</th>
+                <th style={th({ textAlign: 'right', width: 126 })}>JUMLAH HARGA</th>
+                <th style={th({ padding: '9px 14px', width: 118 })}>KEYAKINAN</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.divisions.map((div) => (
+                <DivisionRows
+                  key={div.no}
+                  division={div}
+                  open={Boolean(open[div.no])}
+                  onToggle={() => onToggle(div.no)}
+                  onOpenVolume={onOpenVolume}
+                />
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ position: 'sticky', bottom: 0, background: color.sidebarDark, color: '#F1F2EB' }}>
+                <td style={{ padding: '13px 14px' }} colSpan={5}>
+                  <span style={{ font: sans('600 12.5px') }}>{data.grandTotal.label}</span>
+                  <span style={{ font: mono('400 11px'), color: color.onDarkMuted, marginLeft: 10 }}>
+                    {data.grandTotal.meta}
+                  </span>
+                </td>
+                <td style={{ padding: '13px 8px', textAlign: 'right', font: mono('600 14px') }}>
+                  {data.grandTotal.amount}
+                </td>
+                <td style={{ padding: '13px 14px' }} />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -496,22 +508,25 @@ function DivisionRows({
 }
 
 function RecapTab({ data }: { data: BqData }) {
+  const { isCompact } = useViewport()
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 290px', gap: 14, alignItems: 'start' }}>
+    <div style={splitGrid(290, isCompact, 14)}>
       <div style={cardClipped}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', font: sans('400 12.5px') }}>
-          <thead>
-            <tr style={theadRow}>
-              <th style={th({ padding: '10px 16px' })}>URAIAN</th>
-              <th style={th({ padding: '10px 16px', textAlign: 'right' })}>JUMLAH (Rp)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.recap.map((row) => (
-              <RecapTr key={row.label} row={row} />
-            ))}
-          </tbody>
-        </table>
+        <div style={scrollX}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', font: sans('400 12.5px') }}>
+            <thead>
+              <tr style={theadRow}>
+                <th style={th({ padding: '10px 16px' })}>URAIAN</th>
+                <th style={th({ padding: '10px 16px', textAlign: 'right' })}>JUMLAH (Rp)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.recap.map((row) => (
+                <RecapTr key={row.label} row={row} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -589,47 +604,49 @@ function VersionsTab({ data }: { data: BqData }) {
         <div style={{ font: sans('600 12.5px') }}>{versions.title}</div>
         <span style={{ font: mono('400 11px'), color: color.faint }}>{versions.meta}</span>
       </div>
-      <table style={table}>
-        <thead>
-          <tr style={theadRow}>
-            <th style={th({ padding: '9px 16px' })}>ITEM</th>
-            <th style={th({ textAlign: 'right' })}>v1</th>
-            <th style={th({ textAlign: 'right' })}>v2</th>
-            <th style={th({ textAlign: 'right' })}>SELISIH</th>
-            <th style={th({ padding: '9px 16px' })}>SEBAB</th>
-          </tr>
-        </thead>
-        <tbody>
-          {versions.rows.map((row, i) => (
-            <tr
-              key={row.item}
-              style={{
-                borderBottom:
-                  i === versions.rows.length - 1 ? undefined : `1px solid ${color.rowLine}`,
-              }}
-            >
-              <td style={{ padding: '10px 16px' }}>{row.item}</td>
-              <td style={{ padding: '10px 8px', textAlign: 'right', font: mono('400 12px') }}>
-                {row.v1}
-              </td>
-              <td style={{ padding: '10px 8px', textAlign: 'right', font: mono('500 12px') }}>
-                {row.v2}
-              </td>
-              <td
+      <div style={scrollX}>
+        <table style={table}>
+          <thead>
+            <tr style={theadRow}>
+              <th style={th({ padding: '9px 16px' })}>ITEM</th>
+              <th style={th({ textAlign: 'right' })}>v1</th>
+              <th style={th({ textAlign: 'right' })}>v2</th>
+              <th style={th({ textAlign: 'right' })}>SELISIH</th>
+              <th style={th({ padding: '9px 16px' })}>SEBAB</th>
+            </tr>
+          </thead>
+          <tbody>
+            {versions.rows.map((row, i) => (
+              <tr
+                key={row.item}
                 style={{
-                  padding: '10px 8px',
-                  textAlign: 'right',
-                  font: mono('600 12px'),
-                  color: row.deltaColor,
+                  borderBottom:
+                    i === versions.rows.length - 1 ? undefined : `1px solid ${color.rowLine}`,
                 }}
               >
-                {row.delta}
-              </td>
-              <td style={{ padding: '10px 16px', color: color.muted }}>{row.reason}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <td style={{ padding: '10px 16px' }}>{row.item}</td>
+                <td style={{ padding: '10px 8px', textAlign: 'right', font: mono('400 12px') }}>
+                  {row.v1}
+                </td>
+                <td style={{ padding: '10px 8px', textAlign: 'right', font: mono('500 12px') }}>
+                  {row.v2}
+                </td>
+                <td
+                  style={{
+                    padding: '10px 8px',
+                    textAlign: 'right',
+                    font: mono('600 12px'),
+                    color: row.deltaColor,
+                  }}
+                >
+                  {row.delta}
+                </td>
+                <td style={{ padding: '10px 16px', color: color.muted }}>{row.reason}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <div
         style={{
           padding: '12px 16px',

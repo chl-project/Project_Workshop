@@ -79,6 +79,7 @@ export function ChatBot({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: 20,
           marginBottom: 16,
         }}

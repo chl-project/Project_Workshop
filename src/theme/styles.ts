@@ -109,3 +109,39 @@ export const screenSub: CSSProperties = {
   color: color.muted,
   marginTop: 5,
 }
+
+/* ------------------------------------------------------------- responsive */
+
+/**
+ * A main column with a fixed side panel, which becomes one column when there
+ * is no room for both. Nearly every screen is built this way, so the collapse
+ * lives here rather than being spelled out eight times.
+ */
+export const splitGrid = (
+  sideWidth: number,
+  stacked: boolean,
+  gap = 16,
+): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: stacked ? 'minmax(0,1fr)' : `minmax(0,1fr) ${sideWidth}px`,
+  gap,
+  alignItems: 'start',
+})
+
+/**
+ * Wraps a table that cannot usefully narrow any further. A bill has eleven
+ * numeric columns; squeezing them onto a phone makes it unreadable, so it
+ * scrolls sideways inside its card instead of stretching the page.
+ */
+export const scrollX: CSSProperties = {
+  overflowX: 'auto',
+  WebkitOverflowScrolling: 'touch',
+  maxWidth: '100%',
+}
+
+/** Grid of small cards that halves, then stacks, as the viewport narrows. */
+export const autoGrid = (min: number, gap = 12): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: `repeat(auto-fit, minmax(min(${min}px, 100%), 1fr))`,
+  gap,
+})

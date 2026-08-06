@@ -21,9 +21,12 @@ const assistantItems: { id: ScreenId; glyph: string; label: string }[] = [
 export function Sidebar({
   screen,
   onNavigate,
+  onClose,
 }: {
   screen: ScreenId
   onNavigate: (s: ScreenId) => void
+  /** Set when the sidebar is an overlay on a narrow viewport. */
+  onClose?: () => void
 }) {
   const { sidebarTheme } = useSettings()
   const dark = sidebarTheme === 'gelap'
@@ -78,13 +81,17 @@ export function Sidebar({
   return (
     <aside
       style={{
-        width: layout.sidebarWidth,
+        // As an overlay it must not exceed a small phone's width.
+        width: onClose ? `min(${layout.sidebarWidth}px, 84vw)` : layout.sidebarWidth,
+        height: onClose ? '100%' : undefined,
         flex: 'none',
         background: bg,
         color: fg,
         display: 'flex',
         flexDirection: 'column',
         padding: '0 0 14px',
+        overflowY: 'auto',
+        boxShadow: onClose ? '10px 0 34px rgba(0,0,0,.18)' : undefined,
       }}
     >
       <div
@@ -112,7 +119,7 @@ export function Sidebar({
         >
           CH
         </div>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: sans('600 13px/1.2'), letterSpacing: '-.01em' }}>
             Feasibility Studio
           </div>
@@ -120,6 +127,24 @@ export function Sidebar({
             Cipta Harmoni Lestari
           </div>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup menu"
+            style={{
+              border: 0,
+              background: 'transparent',
+              cursor: 'pointer',
+              color: fg,
+              font: mono('400 17px'),
+              padding: '2px 4px',
+              lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '14px 10px', flex: 1 }}>

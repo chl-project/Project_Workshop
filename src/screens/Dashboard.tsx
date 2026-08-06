@@ -1,7 +1,8 @@
 import { fetchDashboard, keys } from '@/api'
 import { Chip, ErrorPanel, LoadingPanel, NoDataPanel } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
-import { card, cardClipped } from '@/theme/styles'
+import { useViewport } from '@/hooks/useViewport'
+import { autoGrid, card, cardClipped, splitGrid } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { DashboardData, ModuleCard, ScreenId } from '@/types'
 
@@ -12,6 +13,7 @@ export function Dashboard({
   projectId: string
   onNavigate: (s: ScreenId) => void
 }) {
+  const { isCompact } = useViewport()
   const { data, loading, error } = useResource<DashboardData>(keys.dashboard(projectId), () =>
     fetchDashboard(projectId),
   )
@@ -27,6 +29,7 @@ export function Dashboard({
           display: 'flex',
           alignItems: 'flex-end',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: 20,
           marginBottom: 22,
         }}
@@ -49,14 +52,7 @@ export function Dashboard({
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4,1fr)',
-          gap: 14,
-          marginBottom: 26,
-        }}
-      >
+      <div style={{ ...autoGrid(168, 14), marginBottom: 26 }}>
         {data.kpis.map((kpi) => (
           <div key={kpi.label} style={{ ...card, padding: '16px 17px' }}>
             <div style={{ font: sans('500 11px'), color: color.muted, letterSpacing: '.01em' }}>
@@ -78,7 +74,7 @@ export function Dashboard({
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 18, alignItems: 'start' }}>
+      <div style={splitGrid(340, isCompact, 18)}>
         <div>
           <div
             style={{
@@ -90,7 +86,7 @@ export function Dashboard({
           >
             MODUL FEASIBILITY
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 13 }}>
+          <div style={autoGrid(210, 13)}>
             {data.modules.map((m) => (
               <ModuleTile key={m.screen} module={m} onOpen={() => onNavigate(m.screen)} />
             ))}
@@ -186,7 +182,9 @@ function ModuleTile({ module: m, onOpen }: { module: ModuleCard; onOpen: () => v
         display: 'flex',
         flexDirection: 'column',
         gap: 9,
-        gridColumn: m.wide ? 'span 2' : undefined,
+        // Full width however many columns there are — `span 2` would conjure a
+        // second column once the grid collapses to one on a phone.
+        gridColumn: m.wide ? '1 / -1' : undefined,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

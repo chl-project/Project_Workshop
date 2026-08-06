@@ -71,7 +71,7 @@ export function Modal({
           zIndex: 61,
           width,
           maxWidth: 'calc(100vw - 32px)',
-          maxHeight: 'calc(100vh - 64px)',
+          maxHeight: 'calc(100dvh - 64px)',
           overflowY: 'auto',
           ...card,
           boxShadow: '0 20px 60px rgba(0,0,0,.22)',

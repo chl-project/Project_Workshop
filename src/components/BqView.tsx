@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { countItems, formatIdr, formatQty, formatShort } from '@/lib/buildup'
 import { classifyPerM2, priceBasis } from '@/data/priceBasis'
 import { Segmented } from '@/components/primitives'
-import { card, cardClipped, table, th, theadRow, vRule } from '@/theme/styles'
+import { useViewport } from '@/hooks/useViewport'
+import { card, cardClipped, scrollX, table, th, theadRow, vRule } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { BqSection, BuildUpDoc } from '@/types'
 
@@ -123,6 +124,7 @@ function AreaInput({
   value: number | null
   onChange: (m2: number | null) => void
 }) {
+  const { isPhone } = useViewport()
   const [draft, setDraft] = useState<string | null>(null)
   const shown = draft ?? (value == null ? '' : String(value))
 
@@ -148,7 +150,8 @@ function AreaInput({
         }
       }}
       style={{
-        width: 68,
+        // Wider on a phone, where the field renders at 16px to stop iOS zooming.
+        width: isPhone ? 92 : 68,
         border: `1px solid ${value == null ? color.amberBannerBorder : color.border}`,
         background: value == null ? color.amberBannerBg : color.surfaceSoft,
         borderRadius: 5,
@@ -332,7 +335,7 @@ function SectionCard({
       )}
 
       {open && section.lines.length > 0 && (
-        <div style={{ overflowX: 'auto' }}>
+        <div style={scrollX}>
           <table style={{ ...table, minWidth: 940 }}>
             <thead>
               <tr style={theadRow}>
@@ -445,54 +448,56 @@ function Collection({ doc }: { doc: BuildUpDoc }) {
       >
         Collection — rekap per seksi
       </div>
-      <table style={table}>
-        <thead>
-          <tr style={theadRow}>
-            <th style={th({ padding: '9px 16px' })}>REF</th>
-            <th style={th()}>SEKSI</th>
-            <th style={th({ textAlign: 'right' })}>PORSI</th>
-            <th style={th({ textAlign: 'right', padding: '9px 16px' })}>
-              JUMLAH ({doc.currency})
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {doc.sections.map((section) => (
-            <tr key={section.ref} style={{ borderBottom: `1px solid ${color.rowLine}` }}>
-              <td style={{ padding: '10px 16px', font: mono('500 11.5px'), color: color.green }}>
-                {section.ref}
-              </td>
-              <td style={{ padding: '10px 8px', fontWeight: 500 }}>{section.title}</td>
-              <td style={{ padding: '10px 8px', textAlign: 'right', font: mono('400 11.5px') }}>
-                {measured > 0 && !section.subtotalNote
-                  ? `${((section.subtotal / measured) * 100).toFixed(1).replace('.', ',')}%`
-                  : '—'}
-              </td>
-              <td style={{ padding: '10px 16px', textAlign: 'right', font: mono('500 12px') }}>
-                {section.subtotalNote ?? formatIdr(section.subtotal)}
+      <div style={scrollX}>
+        <table style={table}>
+          <thead>
+            <tr style={theadRow}>
+              <th style={th({ padding: '9px 16px' })}>REF</th>
+              <th style={th()}>SEKSI</th>
+              <th style={th({ textAlign: 'right' })}>PORSI</th>
+              <th style={th({ textAlign: 'right', padding: '9px 16px' })}>
+                JUMLAH ({doc.currency})
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {doc.sections.map((section) => (
+              <tr key={section.ref} style={{ borderBottom: `1px solid ${color.rowLine}` }}>
+                <td style={{ padding: '10px 16px', font: mono('500 11.5px'), color: color.green }}>
+                  {section.ref}
+                </td>
+                <td style={{ padding: '10px 8px', fontWeight: 500 }}>{section.title}</td>
+                <td style={{ padding: '10px 8px', textAlign: 'right', font: mono('400 11.5px') }}>
+                  {measured > 0 && !section.subtotalNote
+                    ? `${((section.subtotal / measured) * 100).toFixed(1).replace('.', ',')}%`
+                    : '—'}
+                </td>
+                <td style={{ padding: '10px 16px', textAlign: 'right', font: mono('500 12px') }}>
+                  {section.subtotalNote ?? formatIdr(section.subtotal)}
+                </td>
+              </tr>
+            ))}
+            {doc.preliminaries.map((prelim) => (
+              <tr key={prelim.label} style={{ borderBottom: `1px solid ${color.rowLine}` }}>
+                <td />
+                <td style={{ padding: '10px 8px', color: color.muted }}>{prelim.label}</td>
+                <td />
+                <td style={{ padding: '10px 16px', textAlign: 'right', font: mono('500 12px') }}>
+                  {formatIdr(prelim.amount)}
+                </td>
+              </tr>
+            ))}
+            <tr style={{ background: color.surfaceMuted, borderTop: `1px solid ${color.border}` }}>
+              <td />
+              <td style={{ padding: '12px 8px', fontWeight: 600 }}>{doc.grandTotalLabel}</td>
+              <td />
+              <td style={{ padding: '12px 16px', textAlign: 'right', font: mono('600 13px') }}>
+                {formatIdr(doc.grandTotal)}
               </td>
             </tr>
-          ))}
-          {doc.preliminaries.map((prelim) => (
-            <tr key={prelim.label} style={{ borderBottom: `1px solid ${color.rowLine}` }}>
-              <td />
-              <td style={{ padding: '10px 8px', color: color.muted }}>{prelim.label}</td>
-              <td />
-              <td style={{ padding: '10px 16px', textAlign: 'right', font: mono('500 12px') }}>
-                {formatIdr(prelim.amount)}
-              </td>
-            </tr>
-          ))}
-          <tr style={{ background: color.surfaceMuted, borderTop: `1px solid ${color.border}` }}>
-            <td />
-            <td style={{ padding: '12px 8px', fontWeight: 600 }}>{doc.grandTotalLabel}</td>
-            <td />
-            <td style={{ padding: '12px 16px', textAlign: 'right', font: mono('600 13px') }}>
-              {formatIdr(doc.grandTotal)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -525,54 +530,56 @@ function AhsTables({ doc }: { doc: BuildUpDoc }) {
             <div style={{ flex: 1 }} />
             <span style={{ font: mono('600 12.5px') }}>{formatIdr(analysis.total)}</span>
           </div>
-          <table style={table}>
-            <thead>
-              <tr>
-                <th style={th({ padding: '9px 16px' })}>URAIAN</th>
-                <th style={th({ textAlign: 'right' })}>VOL.</th>
-                <th style={th({ textAlign: 'center' })}>SAT.</th>
-                <th style={th({ textAlign: 'right' })}>HARGA SATUAN</th>
-                <th style={th({ textAlign: 'right', padding: '9px 16px' })}>JUMLAH</th>
-              </tr>
-            </thead>
-            <tbody>
-              {analysis.rows.map((row, i) => (
-                <tr key={i} style={{ borderBottom: `1px solid ${color.rowLine}` }}>
-                  <td style={{ padding: '8px 16px' }}>{row.description}</td>
-                  <Num value={formatQty(row.qty)} />
-                  <td style={{ padding: '8px', textAlign: 'center', font: mono('400 11px') }}>
-                    {row.unit}
+          <div style={scrollX}>
+            <table style={table}>
+              <thead>
+                <tr>
+                  <th style={th({ padding: '9px 16px' })}>URAIAN</th>
+                  <th style={th({ textAlign: 'right' })}>VOL.</th>
+                  <th style={th({ textAlign: 'center' })}>SAT.</th>
+                  <th style={th({ textAlign: 'right' })}>HARGA SATUAN</th>
+                  <th style={th({ textAlign: 'right', padding: '9px 16px' })}>JUMLAH</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysis.rows.map((row, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${color.rowLine}` }}>
+                    <td style={{ padding: '8px 16px' }}>{row.description}</td>
+                    <Num value={formatQty(row.qty)} />
+                    <td style={{ padding: '8px', textAlign: 'center', font: mono('400 11px') }}>
+                      {row.unit}
+                    </td>
+                    <Num value={formatIdr(row.unitPrice)} />
+                    <td
+                      style={{
+                        padding: '8px 16px',
+                        textAlign: 'right',
+                        font: mono('500 12px'),
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {formatIdr(row.total)}
+                    </td>
+                  </tr>
+                ))}
+                <tr style={{ background: color.surfaceMuted }}>
+                  <td colSpan={4} style={{ padding: '9px 16px', fontWeight: 600 }}>
+                    Jumlah
                   </td>
-                  <Num value={formatIdr(row.unitPrice)} />
                   <td
                     style={{
-                      padding: '8px 16px',
+                      padding: '9px 16px',
                       textAlign: 'right',
-                      font: mono('500 12px'),
+                      font: mono('600 12.5px'),
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {formatIdr(row.total)}
+                    {formatIdr(analysis.total)}
                   </td>
                 </tr>
-              ))}
-              <tr style={{ background: color.surfaceMuted }}>
-                <td colSpan={4} style={{ padding: '9px 16px', fontWeight: 600 }}>
-                  Jumlah
-                </td>
-                <td
-                  style={{
-                    padding: '9px 16px',
-                    textAlign: 'right',
-                    font: mono('600 12.5px'),
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {formatIdr(analysis.total)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
       ))}
     </div>

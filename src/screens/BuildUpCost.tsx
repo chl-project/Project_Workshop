@@ -7,7 +7,8 @@ import { BqBuilder } from '@/components/BqBuilder'
 import { Field, Modal } from '@/components/Modal'
 import { Chip, ErrorPanel, LoadingPanel, NoDataPanel, Segmented } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
-import { btnGhost, btnPrimary, card, cardClipped, screenSub, table, th, theadRow, vRule } from '@/theme/styles'
+import { useViewport } from '@/hooks/useViewport'
+import { btnGhost, btnPrimary, card, cardClipped, screenSub, scrollX, splitGrid, table, th, theadRow, vRule } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { ChipTone } from '@/theme/styles'
 import type { CostData, ScreenId, VeStatus } from '@/types'
@@ -58,6 +59,7 @@ export function BuildUpCost({
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: 20,
           marginBottom: 18,
         }}
@@ -91,6 +93,7 @@ function CostSummary({
   onOpenVe: (veId: string) => void
   onNavigate: (s: ScreenId) => void
 }) {
+  const { isCompact } = useViewport()
   const { data, loading, error } = useResource<CostData>(keys.cost(projectId), () =>
     fetchCost(projectId),
   )
@@ -112,13 +115,7 @@ function CostSummary({
       {showAiBanner && <AiBanner text={aiBannerText} marginBottom={16} />}
 
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 300px',
-          gap: 16,
-          alignItems: 'start',
-          marginBottom: 16,
-        }}
+        style={{ ...splitGrid(300, isCompact), marginBottom: 16 }}
       >
         <div style={{ ...card, padding: '20px 22px' }}>
           <div style={{ display: 'flex', gap: 34, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -177,13 +174,7 @@ function CostSummary({
       </div>
 
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 300px',
-          gap: 16,
-          alignItems: 'start',
-          marginBottom: 16,
-        }}
+        style={{ ...splitGrid(300, isCompact), marginBottom: 16 }}
       >
         <div style={cardClipped}>
           <div
@@ -208,60 +199,62 @@ function CostSummary({
             </div>
           </div>
 
-          <table style={table}>
-            <thead>
-              <tr>
-                <th style={th({ padding: '9px 16px' })}>KOMPONEN</th>
-                <th style={th()}>ISI</th>
-                <th style={th({ textAlign: 'right' })}>PORSI</th>
-                <th style={th({ textAlign: 'right' })}>TIPIKAL</th>
-                <th style={th({ textAlign: 'right', padding: '9px 16px' })}>BIAYA (Rp)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {breakdown.map((b, i) => (
-                <tr
-                  key={b.component}
-                  style={{
-                    borderBottom:
-                      i === breakdown.length - 1 ? undefined : `1px solid ${color.rowLine}`,
-                  }}
-                >
-                  <td style={{ padding: '9px 16px', fontWeight: 500 }}>{b.component}</td>
-                  <td style={{ padding: '9px 8px', color: color.muted, fontSize: 11.5 }}>
-                    {b.contents}
-                  </td>
-                  <td style={{ padding: '9px 8px', textAlign: 'right', font: mono('500 12px') }}>
-                    {b.share}
-                  </td>
-                  <td
+          <div style={scrollX}>
+            <table style={table}>
+              <thead>
+                <tr>
+                  <th style={th({ padding: '9px 16px' })}>KOMPONEN</th>
+                  <th style={th()}>ISI</th>
+                  <th style={th({ textAlign: 'right' })}>PORSI</th>
+                  <th style={th({ textAlign: 'right' })}>TIPIKAL</th>
+                  <th style={th({ textAlign: 'right', padding: '9px 16px' })}>BIAYA (Rp)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {breakdown.map((b, i) => (
+                  <tr
+                    key={b.component}
                     style={{
-                      padding: '9px 8px',
-                      textAlign: 'right',
-                      font: mono('400 11px'),
-                      color: color.faint,
+                      borderBottom:
+                        i === breakdown.length - 1 ? undefined : `1px solid ${color.rowLine}`,
                     }}
                   >
-                    {b.typical}
+                    <td style={{ padding: '9px 16px', fontWeight: 500 }}>{b.component}</td>
+                    <td style={{ padding: '9px 8px', color: color.muted, fontSize: 11.5 }}>
+                      {b.contents}
+                    </td>
+                    <td style={{ padding: '9px 8px', textAlign: 'right', font: mono('500 12px') }}>
+                      {b.share}
+                    </td>
+                    <td
+                      style={{
+                        padding: '9px 8px',
+                        textAlign: 'right',
+                        font: mono('400 11px'),
+                        color: color.faint,
+                      }}
+                    >
+                      {b.typical}
+                    </td>
+                    <td style={{ padding: '9px 16px', textAlign: 'right', font: mono('500 12px') }}>
+                      {b.cost}
+                    </td>
+                  </tr>
+                ))}
+                <tr style={{ background: color.surfaceMuted, borderTop: `1px solid ${color.border}` }}>
+                  <td style={{ padding: '11px 16px', fontWeight: 600 }}>Total</td>
+                  <td />
+                  <td style={{ padding: '11px 8px', textAlign: 'right', font: mono('600 12px') }}>
+                    {breakdownTotal.share}
                   </td>
-                  <td style={{ padding: '9px 16px', textAlign: 'right', font: mono('500 12px') }}>
-                    {b.cost}
+                  <td />
+                  <td style={{ padding: '11px 16px', textAlign: 'right', font: mono('600 12.5px') }}>
+                    {breakdownTotal.cost}
                   </td>
                 </tr>
-              ))}
-              <tr style={{ background: color.surfaceMuted, borderTop: `1px solid ${color.border}` }}>
-                <td style={{ padding: '11px 16px', fontWeight: 600 }}>Total</td>
-                <td />
-                <td style={{ padding: '11px 8px', textAlign: 'right', font: mono('600 12px') }}>
-                  {breakdownTotal.share}
-                </td>
-                <td />
-                <td style={{ padding: '11px 16px', textAlign: 'right', font: mono('600 12.5px') }}>
-                  {breakdownTotal.cost}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div style={{ ...card, padding: '16px 17px' }}>
@@ -455,51 +448,53 @@ function CostSummary({
           <div style={{ flex: 1 }} />
         </div>
 
-        <table style={table}>
-          <thead>
-            <tr style={theadRow}>
-              <th style={th({ padding: '9px 16px' })}>ITEM PEKERJAAN</th>
-              <th style={th()}>KONDISI AWAL → USULAN</th>
-              <th style={th({ textAlign: 'right' })}>PENGHEMATAN ↓</th>
-              <th style={th()}>MUTU</th>
-              <th style={th()}>WAKTU</th>
-              <th style={th({ padding: '9px 16px' })}>STATUS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ve.rows.map((row, i) => (
-              <tr
-                key={row.id}
-                className="row-hover"
-                onClick={() => onOpenVe(row.id)}
-                style={{
-                  borderBottom: i === ve.rows.length - 1 ? undefined : `1px solid ${color.rowLine}`,
-                  cursor: 'pointer',
-                  opacity: row.dimmed ? 0.6 : undefined,
-                }}
-              >
-                <td style={{ padding: '10px 16px', fontWeight: 500 }}>{row.item}</td>
-                <td style={{ padding: '10px 8px', color: color.inkSoft }}>{row.change}</td>
-                <td
+        <div style={scrollX}>
+          <table style={table}>
+            <thead>
+              <tr style={theadRow}>
+                <th style={th({ padding: '9px 16px' })}>ITEM PEKERJAAN</th>
+                <th style={th()}>KONDISI AWAL → USULAN</th>
+                <th style={th({ textAlign: 'right' })}>PENGHEMATAN ↓</th>
+                <th style={th()}>MUTU</th>
+                <th style={th()}>WAKTU</th>
+                <th style={th({ padding: '9px 16px' })}>STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ve.rows.map((row, i) => (
+                <tr
+                  key={row.id}
+                  className="row-hover"
+                  onClick={() => onOpenVe(row.id)}
                   style={{
-                    padding: '10px 8px',
-                    textAlign: 'right',
-                    font: mono('600 12px'),
-                    color: row.savingMuted ? color.muted : color.greenOk,
+                    borderBottom: i === ve.rows.length - 1 ? undefined : `1px solid ${color.rowLine}`,
+                    cursor: 'pointer',
+                    opacity: row.dimmed ? 0.6 : undefined,
                   }}
                 >
-                  {row.saving}
-                  <div style={{ font: mono('400 10.5px'), color: color.faint }}>{row.savingPct}</div>
-                </td>
-                <td style={{ padding: '10px 8px', color: row.qualityColor }}>{row.quality}</td>
-                <td style={{ padding: '10px 8px', color: row.timeColor }}>{row.time}</td>
-                <td style={{ padding: '10px 16px' }}>
-                  <Chip tone={veStatusTone[row.status]}>{row.statusLabel}</Chip>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <td style={{ padding: '10px 16px', fontWeight: 500 }}>{row.item}</td>
+                  <td style={{ padding: '10px 8px', color: color.inkSoft }}>{row.change}</td>
+                  <td
+                    style={{
+                      padding: '10px 8px',
+                      textAlign: 'right',
+                      font: mono('600 12px'),
+                      color: row.savingMuted ? color.muted : color.greenOk,
+                    }}
+                  >
+                    {row.saving}
+                    <div style={{ font: mono('400 10.5px'), color: color.faint }}>{row.savingPct}</div>
+                  </td>
+                  <td style={{ padding: '10px 8px', color: row.qualityColor }}>{row.quality}</td>
+                  <td style={{ padding: '10px 8px', color: row.timeColor }}>{row.time}</td>
+                  <td style={{ padding: '10px 16px' }}>
+                    <Chip tone={veStatusTone[row.status]}>{row.statusLabel}</Chip>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <div
           style={{

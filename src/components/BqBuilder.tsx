@@ -23,6 +23,7 @@ import { BqQuestions } from '@/components/BqQuestions'
 import { BqView } from '@/components/BqView'
 import { ErrorPanel, LoadingPanel, ProgressStep, type StepState } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
+import { useViewport } from '@/hooks/useViewport'
 import { btnGhost, btnPrimary, card } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { BuildUpDoc } from '@/types'
@@ -392,6 +393,7 @@ function Toolbar({
   onAdd: () => void
 }) {
   const markup = doc.markup ?? inferMarkup(doc)
+  const { isPhone } = useViewport()
   const [exporting, setExporting] = useState(false)
 
   const runXlsx = async () => {
@@ -425,9 +427,15 @@ function Toolbar({
         value={markup.wastePct}
         onChange={(v) => onMarkup({ wastePct: v })}
       />
-      <span style={{ font: mono('400 10.5px'), color: color.faint, maxWidth: 210, lineHeight: 1.5 }}>
-        dihitung dari kolom supply, bill langsung dihitung ulang · kosong = ikut angka per baris
-      </span>
+      {/* The explanation is the first thing to go when space runs out — the
+          two fields above it are labelled, and the bill is right there. */}
+      {!isPhone && (
+        <span
+          style={{ font: mono('400 10.5px'), color: color.faint, maxWidth: 210, lineHeight: 1.5 }}
+        >
+          dihitung dari kolom supply, bill langsung dihitung ulang · kosong = ikut angka per baris
+        </span>
+      )}
 
       <div style={{ flex: 1 }} />
 

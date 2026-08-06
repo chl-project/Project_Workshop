@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSettings } from '@/state/settings'
+import { useViewport } from '@/hooks/useViewport'
 import { Segmented } from './primitives'
 import { color, mono, sans } from '@/theme/tokens'
 
@@ -9,14 +10,23 @@ import { color, mono, sans } from '@/theme/tokens'
  */
 export function TweaksPanel() {
   const [open, setOpen] = useState(false)
+  const { isPhone } = useViewport()
   const { sidebarTheme, setSidebarTheme, showAiBanner, setShowAiBanner } = useSettings()
 
   return (
-    <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 60 }}>
+    <div
+      style={{
+        position: 'fixed',
+        right: isPhone ? 12 : 20,
+        bottom: isPhone ? 12 : 20,
+        zIndex: 60,
+        maxWidth: 'calc(100vw - 24px)',
+      }}
+    >
       {open && (
         <div
           style={{
-            width: 244,
+            width: isPhone ? 'min(244px, calc(100vw - 24px))' : 244,
             background: color.surface,
             border: `1px solid ${color.border}`,
             borderRadius: 10,

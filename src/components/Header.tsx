@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { color, layout, mono, sans } from '@/theme/tokens'
+import { useViewport } from '@/hooks/useViewport'
 import { currentUser, today } from '@/data/projects'
 import type { Project } from '@/types'
 
@@ -51,6 +52,7 @@ export function Header({
   open,
   onToggle,
   onClose,
+  onOpenNav,
 }: {
   title: string
   projects: Project[]
@@ -60,7 +62,10 @@ export function Header({
   open: boolean
   onToggle: () => void
   onClose: () => void
+  /** Set when the sidebar is an overlay and needs a button to open it. */
+  onOpenNav?: () => void
 }) {
+  const { isPhone, isNarrow } = useViewport()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -84,10 +89,32 @@ export function Header({
         borderBottom: `1px solid ${color.border}`,
         display: 'flex',
         alignItems: 'center',
-        gap: 16,
-        padding: '0 24px',
+        gap: isPhone ? 9 : 16,
+        padding: isPhone ? '0 12px' : '0 24px',
       }}
     >
+      {onOpenNav && (
+        <button
+          type="button"
+          onClick={onOpenNav}
+          aria-label="Buka menu"
+          style={{
+            flex: 'none',
+            width: 34,
+            height: 34,
+            border: `1px solid ${color.border}`,
+            borderRadius: 7,
+            background: color.surfaceSoft,
+            cursor: 'pointer',
+            font: mono('400 15px'),
+            color: color.inkSoft,
+            lineHeight: 1,
+          }}
+        >
+          ☰
+        </button>
+      )}
+
       <button
         type="button"
         className="proj-btn"
@@ -96,6 +123,9 @@ export function Header({
           display: 'flex',
           alignItems: 'center',
           gap: 9,
+          flex: isPhone ? '1 1 auto' : 'none',
+          minWidth: 0,
+          maxWidth: isPhone ? undefined : 300,
           height: 34,
           padding: '0 12px',
           border: `1px solid ${color.border}`,
@@ -106,9 +136,26 @@ export function Header({
           color: color.ink,
         }}
       >
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6E8B3D' }} />
-        {active?.name}
-        <span style={{ color: color.faint, fontSize: 10 }}>▾</span>
+        <span
+          style={{
+            flex: 'none',
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            background: '#6E8B3D',
+          }}
+        />
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+          }}
+        >
+          {active?.name}
+        </span>
+        <span style={{ flex: 'none', color: color.faint, fontSize: 10 }}>▾</span>
       </button>
 
       {open && (
@@ -118,9 +165,13 @@ export function Header({
             style={{
               position: 'fixed',
               top: 52,
-              left: 260,
+              // Anchored under the sidebar on desktop; inset from both edges
+              // once there is no sidebar to sit beside.
+              left: isNarrow ? 12 : 260,
+              right: isNarrow ? 12 : undefined,
               zIndex: 40,
-              width: 300,
+              width: isNarrow ? undefined : 300,
+              maxWidth: 'calc(100vw - 24px)',
               background: color.surface,
               border: `1px solid ${color.border}`,
               borderRadius: 9,
@@ -218,12 +269,29 @@ export function Header({
         </>
       )}
 
-      <div style={{ width: 1, height: 22, background: color.border }} />
-      <div style={{ font: sans('600 14px'), letterSpacing: '-.01em' }}>{title}</div>
+      {/* On a phone the title moves into the page body — there is no room for
+          it beside the project switcher, and truncating both reads as broken. */}
+      {!isPhone && (
+        <>
+          <div style={{ width: 1, height: 22, background: color.border }} />
+          <div
+            style={{
+              font: sans('600 14px'),
+              letterSpacing: '-.01em',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {title}
+          </div>
+        </>
+      )}
       <div style={{ flex: 1 }} />
-      <div style={{ font: mono('400 11.5px'), color: color.faint }}>{today}</div>
+      {!isNarrow && <div style={{ font: mono('400 11.5px'), color: color.faint }}>{today}</div>}
       <div
         style={{
+          flex: 'none',
           width: 30,
           height: 30,
           borderRadius: '50%',
