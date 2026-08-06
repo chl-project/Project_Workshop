@@ -8,6 +8,7 @@ import {
   parseSpecDocuments,
   parseSteps,
   partialError,
+  isSampleProject,
   saveResource,
   uploadDocument,
 } from '@/api'
@@ -61,6 +62,25 @@ const statusTone: Record<MaterialStatus, ChipTone> = {
   unavailable: 'red',
 }
 
+/**
+ * What a project with no data yet starts from. This screen is where a project
+ * gets populated, so it has to render its upload controls even with nothing in
+ * it — an empty-state panel here would be a dead end.
+ */
+const EMPTY_SPEC: SpecData = {
+  documents: [],
+  projectClasses: ['Subsidi', 'Menengah', 'Premium'],
+  activeClass: 'Menengah',
+  itemCount: 0,
+  divisionCount: 0,
+  shownCount: 0,
+  materials: [],
+  findings: [],
+  openFindings: 0,
+  alternativesFor: '',
+  alternatives: [],
+}
+
 export function Spesifikasi({
   projectId,
   onNavigate,
@@ -92,6 +112,9 @@ export function Spesifikasi({
     setScreenState('full')
   }
 
+  const isSample = isSampleProject(projectId)
+  // A real project has no fixture, so `data` is null until it has been filled.
+  const spec = data ?? (loading ? null : EMPTY_SPEC)
   const showTable = screenState === 'full' || screenState === 'err'
 
   return (
@@ -114,7 +137,7 @@ export function Spesifikasi({
         </div>
         <div
           style={{
-            display: 'flex',
+            display: isSample ? 'flex' : 'none',
             alignItems: 'center',
             gap: 6,
             background: color.segmentTrack,
@@ -154,8 +177,8 @@ export function Spesifikasi({
         <PartialBanner onRetry={() => setScreenState('load')} onContinue={() => setScreenState('full')} />
       )}
 
-      {showTable && data && (
-        <SpecTable data={data} projectId={projectId} onNavigate={onNavigate} />
+      {showTable && spec && (
+        <SpecTable data={spec} projectId={projectId} onNavigate={onNavigate} />
       )}
     </>
   )
@@ -636,9 +659,25 @@ function SpecTable({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => (
-                <MaterialTr key={row.id} row={row} />
-              ))}
+              {filtered.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    style={{
+                      padding: '34px 16px',
+                      textAlign: 'center',
+                      font: sans('400 12px/1.65'),
+                      color: color.muted,
+                    }}
+                  >
+                    {spec.materials.length === 0
+                      ? 'Belum ada material. Unggah RKS atau daftar material lewat tombol “Upload dokumen” di atas — isinya akan dibaca dan masuk ke tabel ini.'
+                      : 'Tidak ada item yang cocok dengan pencarian atau filter.'}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((row) => <MaterialTr key={row.id} row={row} />)
+              )}
             </tbody>
           </table>
           <div
@@ -654,6 +693,7 @@ function SpecTable({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {spec.findings.length > 0 && (
           <div style={cardClipped}>
             <div
               style={{
@@ -683,7 +723,9 @@ function SpecTable({
               </div>
             ))}
           </div>
+          )}
 
+          {spec.alternatives.length > 0 && (
           <div style={cardClipped}>
             <div style={{ padding: '12px 15px', borderBottom: `1px solid ${color.borderSoft}` }}>
               <div style={{ font: sans('600 12.5px') }}>Alternatif material</div>
@@ -730,6 +772,7 @@ function SpecTable({
               </button>
             </div>
           </div>
+          )}
         </div>
       </div>
     </>

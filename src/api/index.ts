@@ -24,7 +24,7 @@ import type {
   VeDetail,
   VolumeTrace,
 } from '@/types'
-import { getResource, run } from './client'
+import { getResource, run, saveResource } from './client'
 
 /* Cache keys are the endpoints these calls will hit for real one day. */
 export const keys = {
@@ -53,11 +53,38 @@ export const isSampleProject = (projectId: string) => SAMPLE_IDS.has(projectId)
 const sampleOnly = <T>(projectId: string, fixture: () => T): (() => T) | null =>
   SAMPLE_IDS.has(projectId) ? fixture : null
 
-export const fetchProjects = () =>
-  getResource<{ projects: Project[]; activeId: string }>(keys.projects, () => ({
-    projects: projectFixture,
-    activeId: activeProjectId,
-  }))
+/**
+ * Reads the project registry from its own endpoint rather than the generic
+ * store path.
+ *
+ * The generic path seeds its fixture whenever the row reads as missing, which
+ * for this key means a single 404 would overwrite the saved registry with the
+ * three samples — deleting every project the user had created. Here the server
+ * is authoritative, and the samples are written only when it holds nothing at
+ * all.
+ */
+export const fetchProjects = async (): Promise<{ projects: Project[]; activeId: string }> => {
+  const samples = { projects: projectFixture, activeId: activeProjectId }
+  try {
+    const res = await fetch('/api/projects')
+    if (res.ok) {
+      const registry = (await res.json()) as { projects?: Project[]; activeId?: string }
+      if (Array.isArray(registry.projects) && registry.projects.length > 0) {
+        return {
+          projects: registry.projects,
+          activeId: registry.activeId || registry.projects[0].id,
+        }
+      }
+      // Nothing stored yet: first run. Seed the samples so the app opens on
+      // something, then let every later read come from the database.
+      await saveResource(keys.projects, samples)
+      return samples
+    }
+  } catch {
+    /* API unreachable — fall through to the bundled samples, without writing. */
+  }
+  return samples
+}
 
 export const fetchDashboard = (projectId: string) =>
   getResource<DashboardData>(keys.dashboard(projectId), sampleOnly(projectId, () => dashboardFixture))
