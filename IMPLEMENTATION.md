@@ -64,6 +64,50 @@ loaded state.
 - **Tampilan** panel (bottom right): sidebar theme gelap/terang and the AI-verification
   banner — the two switches the prototype exposed through the design tool's Tweaks panel
 
+## Backend (Neon + Blob) & Vercel deployment
+
+The data layer is backed by a real database when deployed on Vercel. Nothing in
+the UI changes — `src/api` still exposes the same functions — but reads now go
+through serverless functions in `/api`:
+
+```
+api/
+  _lib/db.ts            Neon client + idempotent schema bootstrap
+  _lib/http.ts          api-key auth, CORS, raw-body reader
+  health.ts             GET /api/health — verification endpoint
+  store/[...path].ts    GET/PUT the JSONB store, keyed by the REST paths in `keys`
+  documents.ts          GET list / POST upload (Blob file + Neon metadata row)
+```
+
+**How the data gets there.** The store is a `store(path, value jsonb)` table
+whose keys are exactly the endpoint paths already in `src/api/index.ts`
+(`/projects/:id/bq`, …). On first read of a resource the client gets a 404,
+renders the bundled fixture, and seeds that fixture into Neon; every later read
+is served from Neon. So the database fills itself from the fixtures on first use
+— no separate seed step. If `/api` is unreachable (e.g. plain `npm run dev`
+without `vercel dev`), reads fall back to the fixtures and the app still runs.
+
+**Blob.** The Spesifikasi "Upload dokumen" button uploads real files to Vercel
+Blob and records `{name, url, size}` in Neon; the chips list what's stored.
+
+**Environment variables** (set in Vercel → Settings → Environment Variables,
+see `.env.example`):
+
+| Var | Source | Purpose |
+|-----|--------|---------|
+| `DATABASE_URL` (or `POSTGRES_URL`) | Neon integration | Postgres connection |
+| `BLOB_READ_WRITE_TOKEN` | Blob integration | file uploads |
+| `API_KEY` | you | authorizes writes; if unset, writes are open |
+| `VITE_API_KEY` | you | public key the browser sends with writes — set equal to `API_KEY` |
+
+**Verify the setup:** after deploying, open `https://<your-app>/api/health`. A
+healthy setup returns `{ "ok": true, "neon": { "ok": true, … }, "blob": { "configured": true }, … }`.
+If `neon.ok` is false it echoes the connection error; if `blob.configured` is
+false the Blob token is missing.
+
+**Local development** with the backend live uses `vercel dev` (needs the same
+env vars in `.env.local`). Plain `npm run dev` works too, on fixtures.
+
 ## Notes
 
 - Numbers, copy, and unit prices are the prototype's — AHSP 2026 + 2026 mid-market

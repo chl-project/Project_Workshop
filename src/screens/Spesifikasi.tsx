@@ -3,10 +3,12 @@ import {
   emptyState,
   fetchSpesifikasi,
   keys,
+  listDocuments,
   parseHeader,
   parseSpecDocuments,
   parseSteps,
   partialError,
+  uploadDocument,
 } from '@/api'
 import {
   Chip,
@@ -147,7 +149,9 @@ export function Spesifikasi({
         <PartialBanner onRetry={() => setScreenState('load')} onContinue={() => setScreenState('full')} />
       )}
 
-      {showTable && data && <SpecTable data={data} onNavigate={onNavigate} />}
+      {showTable && data && (
+        <SpecTable data={data} projectId={projectId} onNavigate={onNavigate} />
+      )}
     </>
   )
 }
@@ -295,7 +299,53 @@ function PartialBanner({ onRetry, onContinue }: { onRetry: () => void; onContinu
   )
 }
 
-function SpecTable({ data, onNavigate }: { data: SpecData; onNavigate: (s: ScreenId) => void }) {
+function SpecTable({
+  data,
+  projectId,
+  onNavigate,
+}: {
+  data: SpecData
+  projectId: string
+  onNavigate: (s: ScreenId) => void
+}) {
+  const fileInput = useRef<HTMLInputElement>(null)
+  const [docs, setDocs] = useState<string[]>(data.documents)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  // Merge any documents already uploaded to Blob for this project.
+  useEffect(() => {
+    let alive = true
+    listDocuments(projectId).then((records) => {
+      if (!alive || records.length === 0) return
+      setDocs((prev) => {
+        const merged = new Set(prev)
+        for (const r of records) merged.add(r.name)
+        return [...merged]
+      })
+    })
+    return () => {
+      alive = false
+    }
+  }, [projectId])
+
+  const onFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setUploading(true)
+    setUploadError(null)
+    try {
+      for (const file of Array.from(files)) {
+        const record = await uploadDocument(projectId, file)
+        setDocs((prev) => (prev.includes(record.name) ? prev : [...prev, record.name]))
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload gagal')
+    } finally {
+      setUploading(false)
+      if (fileInput.current) fileInput.current.value = ''
+    }
+  }
+
   return (
     <>
       <div
@@ -309,11 +359,24 @@ function SpecTable({ data, onNavigate }: { data: SpecData; onNavigate: (s: Scree
           marginBottom: 16,
         }}
       >
-        <button type="button" className="btn-primary" style={btnPrimary}>
-          ＋ Upload dokumen
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          hidden
+          onChange={(e) => void onFiles(e.target.files)}
+        />
+        <button
+          type="button"
+          className="btn-primary"
+          style={{ ...btnPrimary, opacity: uploading ? 0.6 : 1 }}
+          disabled={uploading}
+          onClick={() => fileInput.current?.click()}
+        >
+          {uploading ? 'Mengunggah…' : '＋ Upload dokumen'}
         </button>
         <div style={{ display: 'flex', gap: 7, font: mono('400 11px'), color: color.muted }}>
-          {data.documents.map((doc) => (
+          {docs.map((doc) => (
             <span
               key={doc}
               style={{ border: `1px solid ${color.border}`, borderRadius: 5, padding: '5px 9px' }}
@@ -322,6 +385,9 @@ function SpecTable({ data, onNavigate }: { data: SpecData; onNavigate: (s: Scree
             </span>
           ))}
         </div>
+        {uploadError && (
+          <span style={{ font: mono('400 11px'), color: color.red }}>{uploadError}</span>
+        )}
         <div style={{ flex: 1 }} />
         <span style={{ font: sans('500 11px'), color: color.muted }}>Kelas proyek</span>
         <SegmentedStatic options={data.projectClasses} value={data.activeClass} />

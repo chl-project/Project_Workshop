@@ -24,7 +24,7 @@ import type {
   VeDetail,
   VolumeTrace,
 } from '@/types'
-import { get, run } from './client'
+import { getResource, run } from './client'
 
 /* Cache keys are the endpoints these calls will hit for real one day. */
 export const keys = {
@@ -41,36 +41,39 @@ export const keys = {
 } as const
 
 export const fetchProjects = () =>
-  get<{ projects: Project[]; activeId: string }>(keys.projects, () => ({
+  getResource<{ projects: Project[]; activeId: string }>(keys.projects, () => ({
     projects: projectFixture,
     activeId: activeProjectId,
   }))
 
 export const fetchDashboard = (projectId: string) =>
-  get<DashboardData>(keys.dashboard(projectId), () => dashboardFixture)
+  getResource<DashboardData>(keys.dashboard(projectId), () => dashboardFixture)
 
 export const fetchSpesifikasi = (projectId: string) =>
-  get<SpecData>(keys.spesifikasi(projectId), () => spekFixture)
+  getResource<SpecData>(keys.spesifikasi(projectId), () => spekFixture)
 
-export const fetchCost = (projectId: string) => get<CostData>(keys.cost(projectId), () => costFixture)
+export const fetchCost = (projectId: string) =>
+  getResource<CostData>(keys.cost(projectId), () => costFixture)
 
 export const fetchBmw = (projectId: string) =>
-  get<{ data: BmwData; defaultWeights: typeof defaultWeights }>(keys.bmw(projectId), () => ({
+  getResource<{ data: BmwData; defaultWeights: typeof defaultWeights }>(keys.bmw(projectId), () => ({
     data: bmwFixture,
     defaultWeights,
   }))
 
 export const fetchKomposit = (projectId: string) =>
-  get<CompositeData>(keys.komposit(projectId), () => kompositFixture)
+  getResource<CompositeData>(keys.komposit(projectId), () => kompositFixture)
 
-export const fetchBq = (projectId: string) => get<BqData>(keys.bq(projectId), () => bqFixture)
+export const fetchBq = (projectId: string) => getResource<BqData>(keys.bq(projectId), () => bqFixture)
 
 export const fetchVolumeTrace = (itemNo: string) =>
-  get<VolumeTrace>(keys.volumeTrace(itemNo), () => volumeTrace)
+  getResource<VolumeTrace>(keys.volumeTrace(itemNo), () => volumeTrace)
 
-export const fetchVeDetail = (veId: string) => get<VeDetail>(keys.veDetail(veId), () => veDetail)
+export const fetchVeDetail = (veId: string) =>
+  getResource<VeDetail>(keys.veDetail(veId), () => veDetail)
 
-export const fetchClashDetail = (no: string) => get<ClashDetail>(keys.clashDetail(no), () => clashDetail)
+export const fetchClashDetail = (no: string) =>
+  getResource<ClashDetail>(keys.clashDetail(no), () => clashDetail)
 
 /* ---- long-running jobs the UI shows progress for ------------------------ */
 
@@ -83,3 +86,5 @@ export const recalculateBq = (projectId: string, ms = 3200) =>
   run(() => ({ projectId, data: bqFixture }), ms)
 
 export { emptyState, parseHeader, parseSteps, partialError, recalcHeader, recalcSteps }
+
+export { listDocuments, saveResource, uploadDocument, type DocumentRecord } from './client'
