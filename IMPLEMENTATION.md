@@ -34,7 +34,47 @@ src/
                         GambarKomposit, BqRab
   drawers/              Drawer shell + Volume / VE / Clash bodies
   lib/scenario.ts       weighting, scoring, radar geometry, recommendation
+  lib/buildup.ts        bill arithmetic (rate/amount/subtotal/total) + transport
+  lib/buildupExport.ts  the bill as .xlsx / PDF / CSV / JSON
 ```
+
+## Build Up Cost — bill of quantities from an uploaded drawing set
+
+The **Build Up Cost & VE** screen has two tabs. *Ringkasan & VE* is the
+signed-off summary of a project that already has figures. *Build Up Cost dari
+dokumen* is where those figures come from when all the user has is a drawing
+set, so a project with no fixture opens there rather than on an empty state.
+
+The workflow is upload → read → price → export:
+
+1. **Read** — `lib/extract.ts` pulls the text layer out of a CAD-exported PDF
+   (room names, FFL levels, grid references, dimensions) or renders the pages
+   for OCR when there is no text layer. Spreadsheets and images work too. The
+   file bytes never leave the browser; only the extracted text is posted.
+2. **Price** — `POST /api/build-up` hands that text to the model with the target
+   schema and gets back sections (PILING · EARTHWORK · SUBSTRUCTURE · STRUCTURE
+   · ARCHITECT · MEP · EXTERNAL WORKS), the description-only headings that sit
+   above them, measured items, and the analisa harga satuan behind each unit
+   price. The model returns **inputs only** — quantities and the five build-up
+   columns. It is told not to return a rate, an amount, a subtotal, or a total.
+3. **Compute** — `lib/buildup.ts` derives everything that adds up:
+   `rate = supply + accessories + profit + waste + labour`, `amount = qty × rate`,
+   section subtotals, and the grand total including preliminaries. A model that
+   slips a digit in a sum therefore cannot put a wrong figure on screen, and the
+   profit / waste percentages in the toolbar reprice the whole bill locally —
+   no second round trip.
+4. **Export** — `.xlsx` (SheetJS, three sheets: the bill in the source
+   workbook's exact column order, AHS, and a Catatan sheet carrying the
+   assumptions), PDF via the print view, CSV, and the raw JSON.
+
+A second upload extends the bill rather than replacing it — architectural and
+structural drawings usually arrive as separate files — and the result is saved
+to `/projects/:id/build-up-bq`, so it survives a reload.
+
+The volumes are read off drawings, not measured, which is the part that can
+cost someone real money if it is taken on trust. Every assumption the model
+made is carried in its own tab, printed in the PDF, and written into the
+workbook, and the screen keeps the amber AI banner above the bill.
 
 ## Data layer
 
@@ -78,6 +118,7 @@ api/
   store/[...path].ts    GET/PUT the JSONB store, keyed by the REST paths in `keys`
   documents.ts          GET list / POST upload (Blob file + Neon metadata row)
   ve-suggest.ts         POST — OpenAI-generated value-engineering proposals
+  build-up.ts           POST — bill of quantities read out of an uploaded document
   knowledge.ts          GET/POST/DELETE — the RAG knowledge base
   chat.ts               POST — assistant answering over knowledge + app data
 ```
@@ -113,7 +154,7 @@ see `.env.example`):
 | `BLOB_READ_WRITE_TOKEN` | Blob integration | file uploads |
 | `API_KEY` | you | authorizes writes; if unset, writes are open |
 | `VITE_API_KEY` | you | public key the browser sends with writes — set equal to `API_KEY` |
-| `OPENAI_API_KEY` | you | powers "Minta usulan VE dari AI"; if unset, that one button reports AI is not configured |
+| `OPENAI_API_KEY` | you | powers the assistant, the material reader, "Minta usulan VE dari AI", and the bill builder; if unset, those features report that AI is not configured |
 | `OPENAI_MODEL` | optional | defaults to `gpt-4o` |
 
 **Verify the setup:** after deploying, open `https://<your-app>/api/health`. A

@@ -19,9 +19,10 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    "baseUrl": ".",
+    // No `baseUrl`: it is deprecated, and `paths` resolves relative to this
+    // file. Vite maps the same alias in `vite.config.ts`.
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "vite.config.ts"]

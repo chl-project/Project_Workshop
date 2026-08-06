@@ -325,6 +325,97 @@ export interface BqData {
   }
 }
 
+/* ------------------------------------------- build up cost — bill of quantities */
+
+/**
+ * One printed line of the bill.
+ *
+ * A bill is not a flat table: between the priced items sit description-only
+ * lines ("Formwork; as described in the specifications and drawings to:-") that
+ * every following item hangs off. Keeping them as lines rather than dropping
+ * them is what makes the export readable next to the source document.
+ */
+export interface BqLine {
+  kind: 'heading' | 'item'
+  description: string
+  unit?: string
+  qty?: number
+  /** Supply PC Rate — the material at the gate. */
+  supply?: number
+  /** Accessories Rate — fixings, adhesives, ancillaries. */
+  accessories?: number
+  profit?: number
+  waste?: number
+  labour?: number
+  /** Derived: supply + accessories + profit + waste + labour. */
+  rate?: number
+  /** Derived: qty × rate. */
+  amount?: number
+  /** Stands in for the amount when an item carries no price ("Excluded"). */
+  note?: string
+}
+
+export interface BqSection {
+  /** Bill reference letter — A, B, C … */
+  ref: string
+  title: string
+  lines: BqLine[]
+  /** Derived from the section's item amounts. */
+  subtotal: number
+  /** Replaces the figure when the work is priced elsewhere. */
+  subtotalNote?: string
+}
+
+/** One component line of an analisa harga satuan. */
+export interface AhsRow {
+  description: string
+  qty?: number
+  unit?: string
+  unitPrice?: number
+  /** Derived: qty × unitPrice. */
+  total?: number
+}
+
+export interface AhsAnalysis {
+  no: number
+  title: string
+  rows: AhsRow[]
+  /** Derived: sum of the component totals. */
+  total: number
+}
+
+/** Percentages applied on top of the supply rate when the user overrides them. */
+export interface BqMarkup {
+  profitPct: number | null
+  wastePct: number | null
+}
+
+export interface BuildUpDoc {
+  title: string
+  project: string
+  location: string
+  /** The unit or building the bill covers, e.g. "UNIT T8 STD". */
+  unit: string
+  currency: string
+  sections: BqSection[]
+  /** Lump sums carried beside the measured work in the collection page. */
+  preliminaries: { label: string; amount: number }[]
+  grandTotalLabel: string
+  /** Derived: section subtotals + preliminaries. */
+  grandTotal: number
+  /** Gross floor area in m², when the drawings state or imply one. */
+  areaM2?: number
+  ahs: AhsAnalysis[]
+  /** What the model had to assume — read this before trusting the figures. */
+  assumptions: string[]
+  /** File names the bill was read from. */
+  sources: string[]
+  generatedAt: string
+  /** Set when the source had no text layer and was read by OCR. */
+  ocr?: boolean
+  markup?: BqMarkup
+}
+
 /* -------------------------------------------------------------- drawer data */
 
 export interface VolumeTrace {

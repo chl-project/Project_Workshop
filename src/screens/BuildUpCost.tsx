@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { fetchCost, keys } from '@/api'
+import { fetchCost, isSampleProject, keys } from '@/api'
 import { aiBannerText } from '@/data/cost'
 import { requestVeSuggestions, type VeSuggestion } from '@/lib/ai'
 import { AiBanner } from '@/components/AiBanner'
+import { BqBuilder } from '@/components/BqBuilder'
 import { Field, Modal } from '@/components/Modal'
-import { Chip, ErrorPanel, LoadingPanel, NoDataPanel } from '@/components/primitives'
+import { Chip, ErrorPanel, LoadingPanel, NoDataPanel, Segmented } from '@/components/primitives'
 import { useResource } from '@/hooks/useResource'
-import { btnGhost, btnPrimary, card, cardClipped, table, th, theadRow, vRule } from '@/theme/styles'
+import { btnGhost, btnPrimary, card, cardClipped, screenSub, table, th, theadRow, vRule } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { ChipTone } from '@/theme/styles'
 import type { CostData, ScreenId, VeStatus } from '@/types'
@@ -18,7 +19,68 @@ const veStatusTone: Record<VeStatus, ChipTone> = {
   rejected: 'red',
 }
 
+const TABS = ['Ringkasan & VE', 'Build Up Cost dari dokumen'] as const
+type Tab = (typeof TABS)[number]
+
+const TAB_SUBTITLE: Record<Tab, string> = {
+  'Ringkasan & VE':
+    'Biaya per komponen dibanding pasar, dan usulan value engineering beserta dampaknya.',
+  'Build Up Cost dari dokumen':
+    'Unggah gambar kerja atau dokumen BQ — AI menyusun bill of quantities lengkap dengan build up ' +
+    'harga satuan, siap diekspor ke Excel atau PDF.',
+}
+
+/**
+ * Two ways into the same question. The summary is the signed-off view of a
+ * project that already has figures; the builder is where those figures come
+ * from when all the user has is a drawing set — so a project without a fixture
+ * opens there rather than on an empty-state panel.
+ */
 export function BuildUpCost({
+  projectId,
+  showAiBanner,
+  onOpenVe,
+  onNavigate,
+}: {
+  projectId: string
+  showAiBanner: boolean
+  onOpenVe: (veId: string) => void
+  onNavigate: (s: ScreenId) => void
+}) {
+  const [tab, setTab] = useState<Tab>(
+    isSampleProject(projectId) ? 'Ringkasan & VE' : 'Build Up Cost dari dokumen',
+  )
+
+  return (
+    <>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 20,
+          marginBottom: 18,
+        }}
+      >
+        <div style={{ ...screenSub, marginTop: 6, maxWidth: 560 }}>{TAB_SUBTITLE[tab]}</div>
+        <Segmented options={TABS} value={tab} onChange={setTab} font={sans('500 12px')} />
+      </div>
+
+      {tab === 'Ringkasan & VE' ? (
+        <CostSummary
+          projectId={projectId}
+          showAiBanner={showAiBanner}
+          onOpenVe={onOpenVe}
+          onNavigate={onNavigate}
+        />
+      ) : (
+        <BqBuilder projectId={projectId} showAiBanner={showAiBanner} />
+      )}
+    </>
+  )
+}
+
+function CostSummary({
   projectId,
   showAiBanner,
   onOpenVe,

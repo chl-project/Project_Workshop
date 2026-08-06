@@ -15,6 +15,7 @@ import {
 import type {
   BmwData,
   BqData,
+  BuildUpDoc,
   ClashDetail,
   CompositeData,
   CostData,
@@ -32,6 +33,7 @@ export const keys = {
   dashboard: (p: string) => `/projects/${p}/dashboard`,
   spesifikasi: (p: string) => `/projects/${p}/spesifikasi`,
   cost: (p: string) => `/projects/${p}/build-up-cost`,
+  buildUp: (p: string) => `/projects/${p}/build-up-bq`,
   bmw: (p: string) => `/projects/${p}/skenario`,
   komposit: (p: string) => `/projects/${p}/gambar-komposit`,
   bq: (p: string) => `/projects/${p}/bq`,
@@ -94,6 +96,14 @@ export const fetchSpesifikasi = (projectId: string) =>
 
 export const fetchCost = (projectId: string) =>
   getResource<CostData>(keys.cost(projectId), sampleOnly(projectId, () => costFixture))
+
+/**
+ * The bill generated from uploaded drawings. There is no fixture for this one —
+ * it exists only once a document has been read — so a project without one
+ * resolves to `null` and the screen shows its upload state.
+ */
+export const fetchBuildUp = (projectId: string) =>
+  getResource<BuildUpDoc>(keys.buildUp(projectId), null)
 
 export const fetchBmw = (projectId: string) =>
   getResource<{ data: BmwData; defaultWeights: typeof defaultWeights }>(
