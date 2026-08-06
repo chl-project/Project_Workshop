@@ -139,10 +139,37 @@ export async function listDocuments(projectId: string): Promise<DocumentRecord[]
  * row once Blob confirms the upload. Returns a record for optimistic display.
  */
 export async function uploadDocument(projectId: string, file: File): Promise<DocumentRecord> {
-  const blob = await upload(`${projectId}/${file.name}`, file, {
-    access: 'public',
-    handleUploadUrl: `${API_BASE}/documents`,
-    clientPayload: JSON.stringify({ projectId, name: file.name, apiKey: API_KEY ?? '' }),
-  })
-  return { id: blob.pathname, project_id: projectId, name: file.name, url: blob.url }
+  try {
+    const blob = await upload(`${projectId}/${file.name}`, file, {
+      access: 'public',
+      handleUploadUrl: `${API_BASE}/documents`,
+      clientPayload: JSON.stringify({ projectId, name: file.name, apiKey: API_KEY ?? '' }),
+    })
+    return { id: blob.pathname, project_id: projectId, name: file.name, url: blob.url }
+  } catch (err) {
+    // The Blob SDK reports a generic "Failed to retrieve the client token" and
+    // discards the server's explanation, so ask /api/health what's actually wrong.
+    throw new ApiError(await explainUploadFailure(err))
+  }
+}
+
+/** Turns an upload error into a message that says what to fix. */
+async function explainUploadFailure(err: unknown): Promise<string> {
+  const fallback = err instanceof Error ? err.message : 'Upload gagal'
+  try {
+    const res = await fetch(`${API_BASE}/health`)
+    const health = (await res.json()) as {
+      blob?: { configured?: boolean; hint?: string }
+      neon?: { ok?: boolean; error?: string }
+    }
+    if (health.blob?.configured === false) {
+      return health.blob.hint ?? 'Vercel Blob belum terhubung ke project ini.'
+    }
+    if (health.neon?.ok === false) {
+      return `Database Neon tidak terhubung: ${health.neon.error ?? 'periksa DATABASE_URL'}`
+    }
+  } catch {
+    /* health unreachable — fall through to the SDK's message */
+  }
+  return fallback
 }

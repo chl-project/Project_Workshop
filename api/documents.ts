@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
+import { BLOB_MISSING_MESSAGE, blobToken } from './_lib/blob.js'
 import { db, ensureSchema } from './_lib/db.js'
 import { allowCors } from './_lib/http.js'
 
@@ -32,13 +33,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      if (!process.env.BLOB_READ_WRITE_TOKEN) {
-        return res.status(503).json({ error: 'BLOB_READ_WRITE_TOKEN is not configured' })
+      const { token } = blobToken()
+      if (!token) {
+        return res.status(503).json({ configured: false, error: BLOB_MISSING_MESSAGE })
       }
       const body = req.body as HandleUploadBody
       const json = await handleUpload({
         body,
         request: req,
+        token,
         onBeforeGenerateToken: async (_pathname, clientPayload) => {
           const payload = clientPayload ? (JSON.parse(clientPayload) as { apiKey?: string }) : {}
           // Enforce the shared key only when the server has one configured.

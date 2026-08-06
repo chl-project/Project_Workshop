@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { BLOB_MISSING_MESSAGE, blobToken } from './_lib/blob.js'
 import { connectionString, db, ensureSchema } from './_lib/db.js'
 import { allowCors, keyEnforced } from './_lib/http.js'
 
@@ -23,21 +24,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     neon.error = err instanceof Error ? err.message : String(err)
   }
 
-  const blob = {
-    configured: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
-    // The token is validated for real on the first upload; here we only report
-    // whether it was injected into the environment.
-    ok: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+  // The token is validated for real on the first upload; here we only report
+  // whether one was found in the environment, and which variable held it.
+  const { token, source } = blobToken()
+  const blob: Record<string, unknown> = { configured: Boolean(token), ok: Boolean(token) }
+  if (source) blob.source = source
+  else blob.hint = BLOB_MISSING_MESSAGE
+
+  const ai = {
+    configured: Boolean(process.env.OPENAI_API_KEY),
+    model: process.env.OPENAI_MODEL || 'gpt-4o',
   }
 
   const apiKey = { enforced: keyEnforced() }
 
-  const ok = neon.ok === true && blob.configured
+  const ok = neon.ok === true && blob.configured === true
   return res.status(ok ? 200 : 503).json({
     ok,
     time: new Date().toISOString(),
     neon,
     blob,
+    ai,
     apiKey,
   })
 }

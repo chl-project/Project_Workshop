@@ -415,12 +415,24 @@ function SpecTable({
             </span>
           ))}
         </div>
-        {uploadError && (
-          <span style={{ font: mono('400 11px'), color: color.red }}>{uploadError}</span>
-        )}
         <div style={{ flex: 1 }} />
         <span style={{ font: sans('500 11px'), color: color.muted }}>Kelas proyek</span>
         <Segmented options={data.projectClasses} value={activeClass} onChange={setActiveClass} />
+        {uploadError && (
+          <div
+            style={{
+              flexBasis: '100%',
+              background: color.redPanelBg,
+              border: `1px solid ${color.redPanelBorder}`,
+              borderRadius: 7,
+              padding: '9px 11px',
+              font: sans('400 11.5px/1.55'),
+              color: color.redPanelText,
+            }}
+          >
+            {uploadError}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, alignItems: 'start' }}>
