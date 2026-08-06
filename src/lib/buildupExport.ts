@@ -148,6 +148,19 @@ function notesRows(doc: BuildUpDoc): Row[] {
     ['Lokasi', doc.location],
     ['Unit', doc.unit],
     ['Basis harga', doc.basis ?? '—'],
+    ['Luas bangunan', doc.areaM2 == null ? 'belum diisi' : `${formatQty(doc.areaM2)} m² total`],
+    [
+      'Sumber luas',
+      doc.areaM2 == null
+        ? 'dokumen tidak memuat dimensi yang bisa diukur'
+        : doc.areaSource === 'user'
+          ? 'diisi manual'
+          : `diukur AI dari gambar${doc.areaBreakdown?.length ? `: ${doc.areaBreakdown.join('; ')}` : ''}`,
+    ],
+    [
+      'Cost per m²',
+      doc.areaM2 ? `${doc.currency} ${formatIdr(doc.grandTotal / doc.areaM2)}` : '—',
+    ],
     ['Sumber dokumen', doc.sources.join(', ')],
     ['Dibuat', new Date(doc.generatedAt).toLocaleString('id-ID')],
     ['Cara baca', doc.ocr ? 'OCR (dokumen hasil pindai)' : 'layer teks dokumen'],
@@ -340,7 +353,10 @@ export function exportBuildUpPdf(doc: BuildUpDoc): void {
   const head =
     `<h1>${esc(doc.title)}</h1>` +
     `<div class="meta">${esc([doc.project, doc.location, doc.unit].filter(Boolean).join(' · '))}<br />` +
-    `Basis harga: ${esc(doc.basis ?? '—')}<br />` +
+    `Basis harga: ${esc(doc.basis ?? '—')} · ` +
+    `luas bangunan: ${doc.areaM2 == null ? 'belum diisi' : `${esc(formatQty(doc.areaM2))} m²`}` +
+    (doc.areaM2 ? ` · ${esc(formatIdr(doc.grandTotal / doc.areaM2))} /m²` : '') +
+    `<br />` +
     `Sumber: ${esc(doc.sources.join(', ') || '-')} · ` +
     `dibuat ${esc(new Date(doc.generatedAt).toLocaleString('id-ID'))}</div>` +
     `<div class="warn">Volume dan harga disusun oleh AI dari dokumen yang diunggah. ` +

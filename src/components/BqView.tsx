@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { countItems, formatIdr, formatQty, formatShort } from '@/lib/buildup'
-import { priceBasis } from '@/data/priceBasis'
+import { classifyPerM2, priceBasis } from '@/data/priceBasis'
 import { Segmented } from '@/components/primitives'
 import { card, cardClipped, table, th, theadRow, vRule } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
@@ -19,13 +19,20 @@ import type { BqSection, BuildUpDoc } from '@/types'
 const TABS = ['Bill of Quantities', 'Rekap', 'AHS', 'Asumsi'] as const
 type Tab = (typeof TABS)[number]
 
-export function BqView({ doc }: { doc: BuildUpDoc }) {
+export function BqView({
+  doc,
+  onArea,
+}: {
+  doc: BuildUpDoc
+  /** Sets the gross floor area; `null` clears it. */
+  onArea: (m2: number | null) => void
+}) {
   const [tab, setTab] = useState<Tab>('Bill of Quantities')
   const tabs = TABS.filter((t) => (t === 'AHS' ? doc.ahs.length > 0 : true))
 
   return (
     <>
-      <SummaryStrip doc={doc} />
+      <SummaryStrip doc={doc} onArea={onArea} />
 
       <div style={{ margin: '16px 0 12px' }}>
         <Segmented options={tabs} value={tab} onChange={setTab} />
@@ -39,8 +46,9 @@ export function BqView({ doc }: { doc: BuildUpDoc }) {
   )
 }
 
-function SummaryStrip({ doc }: { doc: BuildUpDoc }) {
+function SummaryStrip({ doc, onArea }: { doc: BuildUpDoc; onArea: (m2: number | null) => void }) {
   const perM2 = doc.areaM2 ? doc.grandTotal / doc.areaM2 : null
+  const band = perM2 != null ? classifyPerM2(perM2) : null
 
   return (
     <div style={{ ...card, padding: '18px 22px' }}>
@@ -55,20 +63,34 @@ function SummaryStrip({ doc }: { doc: BuildUpDoc }) {
           </div>
         </div>
         <div style={vRule} />
-        {perM2 != null && (
-          <>
-            <div>
-              <div style={{ font: sans('500 11px'), color: color.muted }}>Cost per m²</div>
-              <div style={{ font: mono('600 34px/1.1'), letterSpacing: '-.03em', marginTop: 6 }}>
-                {formatShort(perM2)}
-              </div>
-              <div style={{ font: mono('400 11.5px'), color: color.faint, marginTop: 5 }}>
-                luas {formatQty(doc.areaM2)} m²
-              </div>
-            </div>
-            <div style={vRule} />
-          </>
-        )}
+        <div>
+          <div style={{ font: sans('500 11px'), color: color.muted }}>Cost per m²</div>
+          <div
+            style={{
+              font: mono('600 34px/1.1'),
+              letterSpacing: '-.03em',
+              marginTop: 6,
+              color: perM2 == null ? color.ghost : undefined,
+            }}
+          >
+            {perM2 == null ? '—' : formatShort(perM2)}
+          </div>
+          <div
+            style={{
+              font: mono('400 11.5px'),
+              color: color.faint,
+              marginTop: 5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            luas
+            <AreaInput value={doc.areaM2 ?? null} onChange={onArea} />
+            m² total
+          </div>
+        </div>
+        <div style={vRule} />
         <div style={{ font: mono('400 11.5px/1.9'), color: color.muted }}>
           {doc.sections.length} seksi · {countItems(doc)} item terukur
           <br />
@@ -80,6 +102,132 @@ function SummaryStrip({ doc }: { doc: BuildUpDoc }) {
           {new Date(doc.generatedAt).toLocaleString('id-ID')}
         </div>
       </div>
+
+      <Checks doc={doc} perM2={perM2} band={band} />
+    </div>
+  )
+}
+
+/**
+ * Total floor area, editable.
+ *
+ * A drawing set exported to PDF often carries no dimension text at all — only
+ * room names and levels — so there is nothing to measure and the model is told
+ * to leave this empty rather than guess it from a plot code. Cost per m² is the
+ * headline check on the whole bill, so the user has to be able to set it.
+ */
+function AreaInput({
+  value,
+  onChange,
+}: {
+  value: number | null
+  onChange: (m2: number | null) => void
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const shown = draft ?? (value == null ? '' : String(value))
+
+  const commit = () => {
+    const parsed = Number((draft ?? '').replace(',', '.'))
+    onChange(draft === '' || !Number.isFinite(parsed) || parsed <= 0 ? null : parsed)
+    setDraft(null)
+  }
+
+  return (
+    <input
+      value={shown}
+      placeholder="isi"
+      inputMode="decimal"
+      aria-label="Total luas lantai bangunan dalam m²"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') {
+          setDraft(null)
+          e.currentTarget.blur()
+        }
+      }}
+      style={{
+        width: 68,
+        border: `1px solid ${value == null ? color.amberBannerBorder : color.border}`,
+        background: value == null ? color.amberBannerBg : color.surfaceSoft,
+        borderRadius: 5,
+        padding: '3px 6px',
+        font: mono('500 11.5px'),
+        color: color.ink,
+        textAlign: 'right',
+      }}
+    />
+  )
+}
+
+/** Amber notes when the bill fails a check the user should see, not the model. */
+function Checks({
+  doc,
+  perM2,
+  band,
+}: {
+  doc: BuildUpDoc
+  perM2: number | null
+  band: { verdict: 'below' | 'in' | 'above'; klass: string } | null
+}) {
+  const notes: string[] = []
+  const items = countItems(doc)
+
+  if (doc.areaM2 == null) {
+    notes.push(
+      'Luas bangunan belum terisi — gambar ini tidak memuat dimensi yang bisa diukur. ' +
+        'Isi total luas lantai (semua lantai dijumlahkan) supaya cost per m² bisa diperiksa.',
+    )
+  } else if (doc.areaSource === 'drawing') {
+    notes.push(
+      `Luas ${formatQty(doc.areaM2)} m² diukur AI dari gambar${
+        doc.areaBreakdown?.length ? ` (${doc.areaBreakdown.join('; ')})` : ''
+      } — cocokkan dengan gambar sebelum dipakai.`,
+    )
+  }
+
+  if (perM2 != null && band) {
+    if (band.verdict === 'below') {
+      notes.push(
+        `Cost per m² ${formatIdr(perM2)} ada di bawah rentang termurah pada basis ini ` +
+          `(${band.klass}). Biasanya ada lingkup yang belum masuk — periksa tab Asumsi, ` +
+          'atau luas bangunannya yang keliru.',
+      )
+    } else if (band.verdict === 'above') {
+      notes.push(
+        `Cost per m² ${formatIdr(perM2)} ada di atas rentang ${band.klass} pada basis ini — ` +
+          'wajar untuk spek tinggi, tapi cek lagi volume dan harga satuannya.',
+      )
+    }
+  }
+
+  if (items < 60) {
+    notes.push(
+      `Bill ini baru memuat ${items} item terukur. Bill hunian yang lengkap jarang di bawah 60 ` +
+        'item — kemungkinan ada disiplin yang belum terbaca. Coba unggah lembar gambar lainnya.',
+    )
+  }
+
+  if (notes.length === 0) return null
+
+  return (
+    <div
+      style={{
+        marginTop: 16,
+        paddingTop: 14,
+        borderTop: `1px solid ${color.borderSoft}`,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 7,
+      }}
+    >
+      {notes.map((note, i) => (
+        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <span style={{ font: mono('500 11px'), color: color.amberText, marginTop: 1 }}>⚠</span>
+          <span style={{ font: sans('400 11.5px/1.55'), color: color.amberPanelText }}>{note}</span>
+        </div>
+      ))}
     </div>
   )
 }

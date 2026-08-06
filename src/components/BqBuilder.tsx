@@ -123,6 +123,17 @@ export function BqBuilder({
     void persist(recompute(doc, { ...current, ...patch }))
   }
 
+  /** A figure the user typed replaces whatever the model read off the drawing. */
+  const setArea = (m2: number | null) => {
+    if (!doc || m2 === (doc.areaM2 ?? null)) return
+    void persist({
+      ...doc,
+      areaM2: m2 ?? undefined,
+      areaSource: m2 == null ? undefined : 'user',
+      areaBreakdown: m2 == null ? doc.areaBreakdown : undefined,
+    })
+  }
+
   if (stored.loading) return <LoadingPanel label="Memuat build up cost…" />
   if (stored.error) return <ErrorPanel error={stored.error} />
 
@@ -171,7 +182,7 @@ export function BqBuilder({
         <>
           <Toolbar doc={doc} busy={busy} onMarkup={setMarkup} onAdd={() => inputRef.current?.click()} />
           {showAiBanner && <AiBanner text={AI_CAUTION} marginBottom={16} />}
-          <BqView doc={doc} />
+          <BqView doc={doc} onArea={setArea} />
         </>
       )}
     </>

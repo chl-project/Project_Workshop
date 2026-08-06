@@ -99,6 +99,19 @@ The workflow is upload → read → price → export:
    workbook's exact column order, AHS, and a Catatan sheet carrying the
    assumptions), PDF via the print view, CSV, and the raw JSON.
 
+**Floor area is entered, not guessed.** `areaM2` is the total of every floor
+plate, and it drives the cost-per-m² check on the whole bill — so a wrong one
+makes a sound bill read as under-priced. A drawing set exported to PDF often
+carries no dimension text at all: the Scott Vale set, for instance, yields room
+names, FFL levels, grid refs and a scale, and nothing to measure. The model
+used to fill the gap from the unit designation — "UNIT 5 X 12 CORNER" × 2
+floors = 120 m², which is the plot, not the building. It is now told that
+multiplying out a plot code is the classic error, to return the area only with
+a per-floor breakdown, and otherwise to leave it empty and say so. The field is
+editable in the summary strip, the exports record whether the figure was
+measured or typed, and three checks sit under it: area missing or model-read,
+cost per m² outside the basis band, and a bill thinner than 60 items.
+
 A second upload extends the bill rather than replacing it — architectural and
 structural drawings usually arrive as separate files — and the result is saved
 to `/projects/:id/build-up-bq`, so it survives a reload.

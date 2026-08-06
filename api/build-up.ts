@@ -35,6 +35,7 @@ Balas HANYA satu objek JSON dengan bentuk berikut:
   "unit": "tipe/unit yang dibilling, mis. UNIT 5X12 CORNER",
   "currency": "IDR",
   "areaM2": 0,
+  "areaBreakdown": ["Lantai 1 — 34 m2 (dari denah)", "Lantai 2 — 34 m2 (dari denah)"],
   "sections": [
     {
       "ref": "A",
@@ -97,12 +98,30 @@ plesteran, acian, pengecatan, keramik/homogenous tile, kusen, atap, dst). Tiap b
 berisi bahan dan upah dengan koefisien yang wajar. Total tiap analisa harus konsisten dengan
 "supply" yang Anda pakai di bill.
 
+LUAS BANGUNAN ("areaM2") — sering salah, baca pelan-pelan:
+- "areaM2" adalah TOTAL LUAS LANTAI BANGUNAN: luas pelat semua lantai dijumlahkan
+  (lantai 1 + lantai 2 + mezanin/loteng bila ada). Bukan luas kavling, bukan luas
+  tapak/footprint, bukan luas satu lantai saja.
+- Ukur dari denah: pakai garis grid berdimensi, angka dimensi, atau skala gambar.
+  Rinci per lantai di "areaBreakdown" supaya bisa diperiksa.
+- JANGAN menurunkan luas dari nama tipe unit. "UNIT 5 X 12", "tipe 45/90", "kavling
+  6x15" itu ukuran KAVLING atau kode tipe — mengalikannya (5 × 12 = 60, lalu × 2
+  lantai = 120) adalah kesalahan yang paling sering terjadi dan hasilnya selalu
+  terlalu besar, karena bangunan tidak menutupi seluruh kavling.
+- Kalau gambar tidak memuat dimensi maupun skala yang bisa dipakai — misalnya teks
+  yang terbaca hanya nama ruang dan peil lantai — JANGAN menebak. Isi "areaM2": null
+  dan tulis di "assumptions" bahwa luas bangunan belum bisa diukur dari dokumen ini
+  dan perlu diisi manual. Volume pekerjaan tetap Anda perkirakan seperti biasa.
+
 UJI KEWAJARAN — lakukan sebelum membalas:
-- Hitung sendiri total bill ÷ luas lantai, lalu bandingkan dengan rentang biaya per m² pada
-  basis harga yang diberikan. Kalau hasilnya di BAWAH rentang untuk kelas bangunan ini,
-  hampir selalu sebabnya ada lingkup yang belum masuk (MEP, finishing, atap, sanitair,
-  pekerjaan persiapan) atau harga satuan yang ketinggalan zaman — periksa dan perbaiki
-  dulu, jangan diserahkan apa adanya.
+- Kalau "areaM2" berhasil diukur: hitung sendiri total bill ÷ luas itu, lalu bandingkan
+  dengan rentang biaya per m² pada basis harga yang diberikan. Kalau hasilnya di BAWAH
+  rentang untuk kelas bangunan ini, hampir selalu sebabnya ada lingkup yang belum masuk
+  (MEP, finishing, atap, sanitair, pekerjaan persiapan) atau harga satuan yang ketinggalan
+  zaman — periksa dan perbaiki dulu, jangan diserahkan apa adanya.
+- Perbaikannya lewat LINGKUP dan harga satuan yang benar. JANGAN menaikkan harga satuan
+  semata-mata supaya angkanya masuk rentang, dan jangan mengecilkan "areaM2" supaya biaya
+  per m² kelihatan wajar — keduanya menyembunyikan masalah, bukan memperbaikinya.
 - Bill hunian yang lengkap jarang punya kurang dari 60 baris item. Kalau punya Anda lebih
   sedikit, kemungkinan besar ada lingkup yang terlewat.
 
@@ -329,6 +348,10 @@ function parseDoc(
     .filter((p) => p.amount > 0)
 
   const unit = str(src.unit)
+  // A plot code the model may have multiplied out ("5 X 12" -> 120) is not a
+  // floor area. Only keep a figure it also broke down per floor.
+  const areaBreakdown = asArray(src.areaBreakdown).map(str).filter(Boolean)
+  const areaM2 = areaBreakdown.length > 0 ? num(src.areaM2) : undefined
 
   return {
     title: str(src.title) || 'BILL OF QUANTITIES',
@@ -336,7 +359,9 @@ function parseDoc(
     location: str(src.location),
     unit,
     currency: str(src.currency) || 'IDR',
-    areaM2: num(src.areaM2),
+    areaM2,
+    areaSource: areaM2 != null ? 'drawing' : undefined,
+    areaBreakdown,
     sections,
     preliminaries,
     grandTotalLabel: str(src.grandTotalLabel) || `Total Amount ${unit}`.trim(),

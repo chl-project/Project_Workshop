@@ -79,6 +79,32 @@ export const anchorRates = [
   { item: 'Unit AC split 1 PK + instalasi', unit: 'unit', rate: 7_630_000 },
 ] as const
 
+/**
+ * Places a cost per m² against the guide.
+ *
+ * The check is only worth as much as the floor area behind it — an area read
+ * off a plot code rather than measured makes a sound bill read as underpriced.
+ * So this reports where the figure sits and leaves the judgement on screen,
+ * rather than quietly correcting anything.
+ */
+export function classifyPerM2(perM2: number): { verdict: 'below' | 'in' | 'above'; klass: string } {
+  const lowest = perM2Guide[0]
+  const highest = perM2Guide[perM2Guide.length - 1]
+  if (perM2 < lowest.from) return { verdict: 'below', klass: lowest.klass }
+  if (perM2 > highest.to) return { verdict: 'above', klass: highest.klass }
+  const band = perM2Guide.find((g) => perM2 >= g.from && perM2 <= g.to)
+  // Between two bands (e.g. 6,5 jt sits above "sederhana" and below "menengah"):
+  // report it against the nearer one rather than pretending it fits neither.
+  const nearest =
+    band ??
+    [...perM2Guide].sort(
+      (a, b) =>
+        Math.min(Math.abs(perM2 - a.from), Math.abs(perM2 - a.to)) -
+        Math.min(Math.abs(perM2 - b.from), Math.abs(perM2 - b.to)),
+    )[0]
+  return { verdict: band ? 'in' : 'below', klass: nearest.klass }
+}
+
 /** The basis, as the `/api/build-up` model prompt receives it. */
 export function basisForPrompt() {
   return {

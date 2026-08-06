@@ -403,8 +403,16 @@ export interface BuildUpDoc {
   grandTotalLabel: string
   /** Derived: section subtotals + preliminaries. */
   grandTotal: number
-  /** Gross floor area in m², when the drawings state or imply one. */
+  /**
+   * Total gross floor area in m² — every floor plate added together, not the
+   * footprint and not the plot. Drives the cost-per-m² sanity check, so a wrong
+   * one makes a sound bill look under-priced.
+   */
   areaM2?: number
+  /** Where `areaM2` came from. A drawing without dimensions yields neither. */
+  areaSource?: 'drawing' | 'user'
+  /** Per-floor plates the model measured, e.g. ["Lantai 1 — 34 m²", …]. */
+  areaBreakdown?: string[]
   ahs: AhsAnalysis[]
   /** What the model had to assume — read this before trusting the figures. */
   assumptions: string[]
