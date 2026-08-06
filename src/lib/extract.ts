@@ -1,34 +1,63 @@
 /**
- * Turns an uploaded file into plain text so it can be read by the model.
+ * Turns an uploaded file into something the model can read.
  *
- * Everything runs in the browser: heavy parsers (pdf.js, SheetJS) are imported
- * lazily so they stay out of the main bundle until someone uploads that kind of
- * file, and the file bytes never need a second round trip to the server.
+ * A PDF exported from a CAD or office tool carries a text layer that can be
+ * read directly. A scanned or photographed one carries only pixels, so its
+ * pages are rendered to images and read by OCR instead — which is the common
+ * case for an RKS that has been printed, signed, and scanned back in.
+ *
+ * Everything runs in the browser: heavy parsers (pdf.js, SheetJS) load lazily,
+ * and rendering pages here keeps the file bytes off the server entirely.
  */
 
 const TEXT_EXTENSIONS = ['.txt', '.md', '.markdown', '.csv', '.json', '.log', '.yml', '.yaml']
 const SHEET_EXTENSIONS = ['.xlsx', '.xls', '.xlsm', '.ods']
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']
+
+/** Longest edge of a rendered page, in pixels — legible to OCR without bloat. */
+const RENDER_MAX_EDGE = 1600
+/** Guards cost and request time on a long scanned document. */
+export const MAX_OCR_PAGES = 30
+
+export type ExtractResult =
+  | { kind: 'text'; text: string }
+  /** Pages that need OCR, as JPEG data URLs. */
+  | { kind: 'images'; images: string[]; pages: number; truncated: boolean }
 
 export function isSupportedFile(name: string): boolean {
   const lower = name.toLowerCase()
   return (
     lower.endsWith('.pdf') ||
     SHEET_EXTENSIONS.some((ext) => lower.endsWith(ext)) ||
+    IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext)) ||
     TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext))
   )
 }
 
-export async function extractText(file: File): Promise<string> {
+export async function extractDocument(file: File): Promise<ExtractResult> {
   const lower = file.name.toLowerCase()
-  if (lower.endsWith('.pdf')) return extractPdfText(file)
-  if (SHEET_EXTENSIONS.some((ext) => lower.endsWith(ext))) return extractSheetText(file)
-  if (TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext))) return file.text()
+  if (lower.endsWith('.pdf')) return extractPdf(file)
+  if (SHEET_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+    return { kind: 'text', text: await extractSheetText(file) }
+  }
+  if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+    return { kind: 'images', images: [await fileToDataUrl(file)], pages: 1, truncated: false }
+  }
+  if (TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+    return { kind: 'text', text: await file.text() }
+  }
   throw new Error(
-    `Format ${file.name.split('.').pop() ?? ''} belum didukung. Gunakan PDF, XLSX/XLS, CSV, TXT, atau MD.`,
+    `Format ${file.name.split('.').pop() ?? ''} belum didukung. Gunakan PDF, gambar, XLSX/XLS, CSV, TXT, atau MD.`,
   )
 }
 
-async function extractPdfText(file: File): Promise<string> {
+/**
+ * Reads a PDF's text layer, falling back to rendering its pages for OCR. The
+ * threshold matters: a scanned PDF often carries a few stray characters from a
+ * header stamp, which would otherwise pass as a successful text extraction and
+ * yield almost nothing.
+ */
+async function extractPdf(file: File): Promise<ExtractResult> {
   const pdfjs = await import('pdfjs-dist')
   const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
@@ -37,8 +66,8 @@ async function extractPdfText(file: File): Promise<string> {
   const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) })
   const doc = await loadingTask.promise
 
-  const pages: string[] = []
   try {
+    const pages: string[] = []
     for (let n = 1; n <= doc.numPages; n++) {
       const page = await doc.getPage(n)
       const content = await page.getTextContent()
@@ -49,18 +78,57 @@ async function extractPdfText(file: File): Promise<string> {
         .trim()
       if (text) pages.push(text)
     }
+
+    const joined = pages.join('\n\n')
+    // ~40 characters per page means there is no usable text layer.
+    if (joined.length >= doc.numPages * 40) return { kind: 'text', text: joined }
+
+    // Scanned or image-only: render the pages instead.
+    const limit = Math.min(doc.numPages, MAX_OCR_PAGES)
+    const images: string[] = []
+    for (let n = 1; n <= limit; n++) {
+      images.push(await renderPage(await doc.getPage(n)))
+    }
+    return {
+      kind: 'images',
+      images,
+      pages: doc.numPages,
+      truncated: doc.numPages > limit,
+    }
   } finally {
     await loadingTask.destroy()
   }
+}
 
-  const joined = pages.join('\n\n')
-  if (!joined.trim()) {
-    throw new Error(
-      'PDF ini tidak memuat teks yang bisa dibaca (kemungkinan hasil scan). ' +
-        'Gunakan PDF hasil ekspor, atau salin teksnya secara manual.',
-    )
-  }
-  return joined
+/** Renders one PDF page to a JPEG data URL sized for OCR. */
+async function renderPage(page: import('pdfjs-dist').PDFPageProxy): Promise<string> {
+  const base = page.getViewport({ scale: 1 })
+  const scale = Math.min(RENDER_MAX_EDGE / Math.max(base.width, base.height), 3)
+  const viewport = page.getViewport({ scale: Math.max(scale, 1) })
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.ceil(viewport.width)
+  canvas.height = Math.ceil(viewport.height)
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Browser tidak bisa merender halaman PDF.')
+  // White background: a JPEG has no alpha, so transparent areas would go black.
+  context.fillStyle = '#FFFFFF'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+
+  await page.render({ canvasContext: context, viewport, canvas }).promise
+  const url = canvas.toDataURL('image/jpeg', 0.82)
+  canvas.width = 0
+  canvas.height = 0
+  return url
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error(`${file.name}: gagal dibaca.`))
+    reader.readAsDataURL(file)
+  })
 }
 
 /**

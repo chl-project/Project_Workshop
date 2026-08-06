@@ -4,6 +4,11 @@ import OpenAI from 'openai'
 
 export const CHAT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o'
 export const EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small'
+/**
+ * Kept separate from CHAT_MODEL: OPENAI_MODEL may be set to a text-only model,
+ * which would fail on the image payloads OCR sends.
+ */
+export const VISION_MODEL = process.env.OPENAI_VISION_MODEL || 'gpt-4o'
 
 export const OPENAI_MISSING_MESSAGE =
   'Fitur AI belum aktif. Tambahkan environment variable OPENAI_API_KEY di Vercel lalu redeploy.'

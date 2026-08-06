@@ -80,4 +80,4 @@ export async function askAssistant(
 /* ---- turning an uploaded file into plain text --------------------------- */
 
 // Extraction is shared with the Spesifikasi upload flow.
-export { extractText, isSupportedFile as isSupportedKnowledgeFile } from './extract'
+export { extractDocument, isSupportedFile as isSupportedKnowledgeFile } from './extract'

@@ -11,7 +11,8 @@ import {
   saveResource,
   uploadDocument,
 } from '@/api'
-import { extractText, isSupportedFile } from '@/lib/extract'
+import { isSupportedFile } from '@/lib/extract'
+import { readDocument } from '@/lib/ocr'
 import { extractMaterials, mergeMaterials } from '@/lib/materials'
 import {
   Chip,
@@ -398,11 +399,12 @@ function SpecTable({
           continue
         }
 
-        setBusyLabel(`Membaca ${file.name}…`)
-        const text = await extractText(file)
+        // Scanned PDFs go through OCR here; progress is surfaced per page batch
+        // because that step is slow enough to look stuck otherwise.
+        const read = await readDocument(file, setBusyLabel)
 
         setBusyLabel(`Menyusun data dari ${file.name}…`)
-        const rows = await extractMaterials(file.name, text)
+        const rows = await extractMaterials(file.name, read.text)
         if (rows.length === 0) {
           problems.push(`${file.name}: tidak ditemukan daftar material di dalamnya.`)
           continue
@@ -413,7 +415,9 @@ function SpecTable({
         setSpec(current)
         notes.push(
           `${file.name}: ${merged.added} item masuk` +
-            (merged.skipped ? ` · ${merged.skipped} sudah ada` : ''),
+            (merged.skipped ? ` · ${merged.skipped} sudah ada` : '') +
+            (read.ocr ? ' · dibaca via OCR' : '') +
+            (read.note ? ` · ${read.note}` : ''),
         )
       } catch (err) {
         problems.push(`${file.name}: ${err instanceof Error ? err.message : 'gagal diproses'}`)
@@ -454,7 +458,7 @@ function SpecTable({
           type="file"
           multiple
           hidden
-          accept=".pdf,.xlsx,.xls,.xlsm,.ods,.csv,.txt,.md"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.xlsm,.ods,.csv,.txt,.md"
           onChange={(e) => void onFiles(e.target.files)}
         />
         <button

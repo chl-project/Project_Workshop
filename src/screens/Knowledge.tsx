@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import {
   addKnowledge,
   deleteKnowledge,
-  extractText,
   isSupportedKnowledgeFile,
   listKnowledge,
   type KnowledgeDoc,
 } from '@/lib/knowledge'
+import { readDocument } from '@/lib/ocr'
 import { btnGhost, btnPrimary, card, cardClipped, screenSub, screenTitle } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
 import type { ScreenId } from '@/types'
@@ -53,12 +53,15 @@ export function Knowledge({
     try {
       for (const file of Array.from(files)) {
         if (!isSupportedKnowledgeFile(file.name)) {
-          throw new Error(`${file.name}: format belum didukung (pakai PDF, TXT, MD, CSV, atau JSON).`)
+          throw new Error(
+            `${file.name}: format belum didukung (pakai PDF, gambar, XLSX, CSV, TXT, atau MD).`,
+          )
         }
-        setBusy(`Membaca ${file.name}…`)
-        const content = await extractText(file)
-        setBusy(`Memproses ${file.name}…`)
-        await ingest(file.name.replace(/\.[^.]+$/, ''), file.name, content)
+        // Scanned PDFs and photos are transcribed first, then indexed as text.
+        const read = await readDocument(file, setBusy)
+        setBusy(`Mengindeks ${file.name}…`)
+        await ingest(file.name.replace(/\.[^.]+$/, ''), file.name, read.text)
+        if (read.note) setNotice((prev) => `${prev ?? ''} (${read.note})`.trim())
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memproses berkas')
@@ -132,15 +135,15 @@ export function Knowledge({
         <div style={{ ...card, padding: '18px 20px' }}>
           <div style={{ font: sans('600 13px'), marginBottom: 4 }}>Unggah berkas</div>
           <div style={{ font: sans('400 11.5px/1.6'), color: color.muted, marginBottom: 14 }}>
-            PDF (yang ada teksnya), TXT, MD, CSV, atau JSON. Berkas dibaca di browser, lalu
-            dipecah dan diindeks.
+            PDF, gambar hasil scan/foto, XLSX, CSV, TXT, atau MD. PDF hasil pindai dan gambar
+            dibaca otomatis dengan OCR, lalu dipecah dan diindeks.
           </div>
           <input
             ref={fileInput}
             type="file"
             multiple
             hidden
-            accept=".pdf,.txt,.md,.markdown,.csv,.json,.log,.yml,.yaml"
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.txt,.md,.markdown,.csv,.json,.log,.yml,.yaml"
             onChange={(e) => void onFiles(e.target.files)}
           />
           <button
