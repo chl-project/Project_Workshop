@@ -1,3 +1,4 @@
+import { basisForPrompt, priceBasis } from '@/data/priceBasis'
 import type { AhsAnalysis, BqLine, BqMarkup, BqSection, BuildUpDoc } from '@/types'
 
 /**
@@ -126,6 +127,13 @@ export interface GenerateInput {
 }
 
 /**
+ * The app's price basis travels with the request, so a generated bill is priced
+ * against the same anchors the rest of the app quotes rather than the model's
+ * own idea of Indonesian market rates — which reads low and out of date.
+ */
+const withBasis = (input: GenerateInput) => ({ ...input, basis: basisForPrompt() })
+
+/**
  * Sends the extracted document text to the server, which asks the model for a
  * bill in the shape of `BuildUpDoc`. The reply is normalised and recomputed
  * before it reaches the screen.
@@ -134,7 +142,7 @@ export async function generateBuildUp(input: GenerateInput): Promise<BuildUpDoc>
   const res = await fetch('/api/build-up', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify(withBasis(input)),
   })
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string }
@@ -146,7 +154,7 @@ export async function generateBuildUp(input: GenerateInput): Promise<BuildUpDoc>
   // Surface the percentages the model actually applied, so the toolbar opens on
   // "10%" rather than a blank box the user has to guess at. A bill that priced
   // each line differently has no single percentage and keeps its per-line values.
-  const doc = recompute(body.doc)
+  const doc = recompute({ ...body.doc, basis: priceBasis.label })
   return recompute(doc, inferMarkup(doc))
 }
 

@@ -8,15 +8,15 @@ export const dashboard: DashboardData = {
   kpis: [
     {
       label: 'Estimasi Biaya Total',
-      value: 'Rp 18,42',
+      value: 'Rp 26,27',
       unit: ' M',
       note: '▲ 3,1% vs v2',
       noteColor: color.red,
     },
     {
       label: 'Cost per m²',
-      value: '6.148.000',
-      note: 'rentang pasar 5,4–7,2 jt',
+      value: '8.768.000',
+      note: 'rentang pasar 7,5–10,0 jt',
       noteColor: color.muted,
     },
     {
@@ -28,10 +28,10 @@ export const dashboard: DashboardData = {
     },
     {
       label: 'Potensi Saving VE',
-      value: 'Rp 1,24',
+      value: 'Rp 1,79',
       unit: ' M',
       valueColor: color.greenOk,
-      note: '6,7% · 4 dari 9 disetujui',
+      note: '6,8% · 4 dari 9 disetujui',
       noteColor: color.muted,
     },
   ],

@@ -1,5 +1,5 @@
 import { color, font, layout, mono, sans } from '@/theme/tokens'
-import { priceBasis } from '@/data/projects'
+import { priceBasis } from '@/data/priceBasis'
 import { useSettings } from '@/state/settings'
 import type { ScreenId } from '@/types'
 

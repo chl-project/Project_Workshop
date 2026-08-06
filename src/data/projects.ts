@@ -8,8 +8,6 @@ export const projects: Project[] = [
 
 export const activeProjectId = 'anggrek-2'
 
-export const priceBasis = { line1: 'Basis harga', line2: 'AHSP 2026 · Jawa Barat' }
-
 export const currentUser = { initials: 'RA', name: 'Rizky A.' }
 
 export const today = '6 Agu 2026'

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { countItems, formatIdr, formatQty, formatShort } from '@/lib/buildup'
+import { priceBasis } from '@/data/priceBasis'
 import { Segmented } from '@/components/primitives'
 import { card, cardClipped, table, th, theadRow, vRule } from '@/theme/styles'
 import { color, mono, sans } from '@/theme/tokens'
@@ -70,6 +71,8 @@ function SummaryStrip({ doc }: { doc: BuildUpDoc }) {
         )}
         <div style={{ font: mono('400 11.5px/1.9'), color: color.muted }}>
           {doc.sections.length} seksi · {countItems(doc)} item terukur
+          <br />
+          basis harga <span style={{ color: color.ink }}>{doc.basis ?? priceBasis.label}</span>
           <br />
           sumber <span style={{ color: color.ink }}>{doc.sources.join(', ') || '—'}</span>
           <br />

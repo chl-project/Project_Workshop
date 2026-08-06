@@ -8,8 +8,8 @@ export const bmw: BmwData = {
       name: 'Basic',
       subtitle: 'dari VE semua disetujui',
       cost: {
-        total: 'Rp 16,85 M',
-        perM2: '5.624.000 /m²',
+        total: 'Rp 24,03 M',
+        perM2: '8.021.000 /m²',
         delta: '−8,5% vs dasar',
         deltaColor: color.greenOk,
       },
@@ -34,7 +34,7 @@ export const bmw: BmwData = {
       name: 'Standard',
       subtitle: 'spesifikasi RKS saat ini',
       isBase: true,
-      cost: { total: 'Rp 18,42 M', perM2: '6.148.000 /m²', delta: '—' },
+      cost: { total: 'Rp 26,27 M', perM2: '8.768.000 /m²', delta: '—' },
       quality: [
         'Finishing kelas menengah',
         'Umur pakai ±25 tahun',
@@ -56,8 +56,8 @@ export const bmw: BmwData = {
       name: 'Premium',
       subtitle: 'upgrade finishing & MEP',
       cost: {
-        total: 'Rp 21,10 M',
-        perM2: '7.042.000 /m²',
+        total: 'Rp 30,09 M',
+        perM2: '10.043.000 /m²',
         delta: '+14,6% vs dasar',
         deltaColor: color.red,
       },

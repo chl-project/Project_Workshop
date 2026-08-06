@@ -414,6 +414,8 @@ export interface BuildUpDoc {
   /** Set when the source had no text layer and was read by OCR. */
   ocr?: boolean
   markup?: BqMarkup
+  /** Price basis the rates were quoted on, e.g. "AHSP 2026 · DKI Jakarta". */
+  basis?: string
 }
 
 /* -------------------------------------------------------------- drawer data */

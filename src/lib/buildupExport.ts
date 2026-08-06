@@ -52,7 +52,7 @@ function bqRows(doc: BuildUpDoc): Row[] {
     [doc.project],
     [doc.location],
     [doc.unit],
-    [],
+    [doc.basis ? `Basis harga: ${doc.basis}` : null],
     BQ_HEADERS,
     [null, null, null, null, ...Array(7).fill(doc.currency)],
     [],
@@ -147,6 +147,7 @@ function notesRows(doc: BuildUpDoc): Row[] {
     ['Proyek', doc.project],
     ['Lokasi', doc.location],
     ['Unit', doc.unit],
+    ['Basis harga', doc.basis ?? '—'],
     ['Sumber dokumen', doc.sources.join(', ')],
     ['Dibuat', new Date(doc.generatedAt).toLocaleString('id-ID')],
     ['Cara baca', doc.ocr ? 'OCR (dokumen hasil pindai)' : 'layer teks dokumen'],
@@ -339,6 +340,7 @@ export function exportBuildUpPdf(doc: BuildUpDoc): void {
   const head =
     `<h1>${esc(doc.title)}</h1>` +
     `<div class="meta">${esc([doc.project, doc.location, doc.unit].filter(Boolean).join(' · '))}<br />` +
+    `Basis harga: ${esc(doc.basis ?? '—')}<br />` +
     `Sumber: ${esc(doc.sources.join(', ') || '-')} · ` +
     `dibuat ${esc(new Date(doc.generatedAt).toLocaleString('id-ID'))}</div>` +
     `<div class="warn">Volume dan harga disusun oleh AI dari dokumen yang diunggah. ` +

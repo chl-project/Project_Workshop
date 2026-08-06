@@ -77,7 +77,12 @@ BARIS:
 - Untuk item yang tidak dihargai, isi "note":"Excluded" dan kosongkan qty/supply.
 
 BUILD UP HARGA — ini inti menu ini:
-- "supply"      harga material/beton/besi terpasang per satuan, harga pasar Indonesia terkini.
+- "supply"      harga material/beton/besi TERPASANG per satuan, pada basis harga yang
+                diberikan di pesan pengguna. Pakai daftar harga acuan di sana sebagai patokan:
+                item yang ada di daftar itu HARUS memakai angka tersebut (boleh menyesuaikan
+                untuk spesifikasi yang jelas berbeda), dan item lain diperkirakan pada tingkat
+                harga yang sama. JANGAN memakai harga tahun-tahun sebelumnya atau harga daerah
+                lain — itu sumber utama estimasi yang kerendahan.
 - "accessories" biaya aksesori/perekat/fixing per satuan; 0 kalau memang tidak ada.
 - "profit"      overhead + profit. Pakai 10% dari "supply" secara konsisten kecuali dokumen
                 menyebut angka lain.
@@ -91,6 +96,15 @@ AHS — sertakan 8–20 analisa harga satuan untuk pekerjaan pokok yang Anda pak
 plesteran, acian, pengecatan, keramik/homogenous tile, kusen, atap, dst). Tiap baris komponen
 berisi bahan dan upah dengan koefisien yang wajar. Total tiap analisa harus konsisten dengan
 "supply" yang Anda pakai di bill.
+
+UJI KEWAJARAN — lakukan sebelum membalas:
+- Hitung sendiri total bill ÷ luas lantai, lalu bandingkan dengan rentang biaya per m² pada
+  basis harga yang diberikan. Kalau hasilnya di BAWAH rentang untuk kelas bangunan ini,
+  hampir selalu sebabnya ada lingkup yang belum masuk (MEP, finishing, atap, sanitair,
+  pekerjaan persiapan) atau harga satuan yang ketinggalan zaman — periksa dan perbaiki
+  dulu, jangan diserahkan apa adanya.
+- Bill hunian yang lengkap jarang punya kurang dari 60 baris item. Kalau punya Anda lebih
+  sedikit, kemungkinan besar ada lingkup yang terlewat.
 
 KEJUJURAN — bagian ini menentukan apakah hasilnya bisa dipakai:
 - Volume dari gambar adalah PERKIRAAN. Tulis di "assumptions" setiap dasar ukur yang Anda pakai
@@ -117,6 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     filename?: string
     text?: unknown
     hint?: string
+    basis?: PriceBasis
   }
   const text = typeof body.text === 'string' ? body.text.trim() : ''
   if (!text) return res.status(400).json({ error: 'teks dokumen kosong' })
@@ -125,6 +140,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `Nama proyek di aplikasi: ${body.projectName || '-'}`,
     `Nama berkas: ${body.filename || '-'}`,
     body.hint ? `Catatan dari pengguna: ${body.hint}` : '',
+    '',
+    describeBasis(body.basis),
     '',
     'Isi dokumen:',
     text.slice(0, MAX_CHARS),
@@ -161,6 +178,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     return res.status(502).json({ configured: true, error: describeOpenAiError(err) })
   }
+}
+
+/* ------------------------------------------------------------ price basis */
+
+interface PriceBasis {
+  label?: string
+  region?: string
+  year?: number
+  perM2Guide?: { klass?: string; from?: number; to?: number }[]
+  anchorRates?: { item?: string; unit?: string; rate?: number }[]
+}
+
+const rp = (n: number) => n.toLocaleString('id-ID')
+
+/**
+ * Renders the app's price basis for the prompt.
+ *
+ * Without this the model prices from its own general sense of "harga
+ * Indonesia", which reads as a national average from whenever its data ends —
+ * consistently below current Jakarta rates. Anchoring the pokok items is what
+ * keeps a generated bill in the right decade.
+ */
+function describeBasis(basis: PriceBasis | undefined): string {
+  if (!basis || (!basis.anchorRates?.length && !basis.perM2Guide?.length)) return ''
+
+  const lines = [`BASIS HARGA YANG WAJIB DIPAKAI: ${basis.label ?? 'basis aplikasi'}`]
+
+  if (basis.perM2Guide?.length) {
+    lines.push('', 'Rentang biaya bangun per m² (tanpa PPN, tanpa tanah) pada basis ini:')
+    for (const g of basis.perM2Guide) {
+      if (g.from == null || g.to == null) continue
+      lines.push(`- ${g.klass ?? '-'}: Rp ${rp(g.from)} – Rp ${rp(g.to)} /m²`)
+    }
+  }
+
+  if (basis.anchorRates?.length) {
+    lines.push('', 'Harga satuan acuan (terpasang, sebelum overhead & profit):')
+    for (const a of basis.anchorRates) {
+      if (a.rate == null) continue
+      lines.push(`- ${a.item ?? '-'} — Rp ${rp(a.rate)} /${a.unit ?? 'ls'}`)
+    }
+  }
+
+  return lines.join('\n')
 }
 
 /* ------------------------------------------------------------- validation */

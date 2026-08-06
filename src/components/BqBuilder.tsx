@@ -9,6 +9,7 @@ import {
   exportBuildUpPdf,
   exportBuildUpXlsx,
 } from '@/lib/buildupExport'
+import { priceBasis } from '@/data/priceBasis'
 import { AiBanner } from '@/components/AiBanner'
 import { BqView } from '@/components/BqView'
 import { ErrorPanel, LoadingPanel, ProgressStep, type StepState } from '@/components/primitives'
@@ -276,6 +277,9 @@ function Dropzone({
       </button>
       <div style={{ font: mono('400 10.5px'), color: color.faint }}>
         PDF · XLSX · XLS · CSV · JPG · PNG — bisa lebih dari satu berkas
+      </div>
+      <div style={{ font: mono('400 10.5px'), color: color.faint }}>
+        basis harga {priceBasis.label} · berlaku {priceBasis.effectiveFrom}
       </div>
     </div>
   )

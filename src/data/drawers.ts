@@ -12,22 +12,22 @@ export const volumeTrace: VolumeTrace = {
     { text: '× 84 bidang = 11.860,00 m²', accent: true },
   ],
   facts: [
-    { label: 'Harga satuan', value: '78.500 /m²' },
-    { label: 'Sumber harga', value: 'AHSP 2026 · A.4.4.2.2' },
-    { label: 'Indeks wilayah', value: 'Bekasi · 1,04' },
-    { label: 'Berlaku sejak', value: '1 Jul 2026' },
+    { label: 'Harga satuan', value: '120.100 /m²' },
+    { label: 'Sumber harga', value: 'AHSP 2026 DKI · A.4.4.2.2' },
+    { label: 'Indeks wilayah', value: 'DKI Jakarta · 1,00' },
+    { label: 'Berlaku sejak', value: '1 Jan 2026' },
   ],
-  total: { label: 'Jumlah harga', value: '931.010.000' },
+  total: { label: 'Jumlah harga', value: '1.424.386.000' },
   drawingCaption: 'ARS-rev04.pdf · lembar 07 · denah unit tipe 45',
 }
 
 export const veDetail: VeDetail = {
   kicker: 'USULAN VALUE ENGINEERING',
   title: 'Lantai granit unit → homogeneous tile',
-  saving: 'Rp 412.000.000',
-  savingNote: '2,2% dari total\n−10 hari',
-  before: 'Granit 60×60 polished motif custom, seluruh unit — 2.884 m² @ 428.000',
-  after: 'Homogeneous tile 60×60 stok reguler, kelas mutu setara — 2.884 m² @ 285.000',
+  saving: 'Rp 601.500.000',
+  savingNote: '2,3% dari total\n−10 hari',
+  before: 'Granit 60×60 polished motif custom, seluruh unit — 2.884 m² @ 624.700',
+  after: 'Homogeneous tile 60×60 stok reguler, kelas mutu setara — 2.884 m² @ 416.000',
   facts: [
     { label: 'Dampak mutu', value: 'Setara' },
     { label: 'Dampak waktu', value: 'Lebih cepat 10 hari', valueColor: color.greenOk },

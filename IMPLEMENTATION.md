@@ -38,6 +38,38 @@ src/
   lib/buildupExport.ts  the bill as .xlsx / PDF / CSV / JSON
 ```
 
+## Price basis
+
+`src/data/priceBasis.ts` is the single source of truth: **AHSP 2026 · DKI
+Jakarta**. It used to be a label and nothing more — the sidebar said "Jawa
+Barat" while the sample figures were hand-written and generated bills were
+priced from the model's own notion of Indonesian market rates, which reads as a
+national average from whenever its training data ends. That is where the low
+estimates came from.
+
+The module now carries the region, the per-m² band per quality class, and
+anchor rates for the items that dominate a residential bill. Those anchors are
+sent to the model with every `/api/build-up` request and the prompt makes them
+binding, so a generated bill is priced on the same basis the rest of the app
+quotes. The prompt also asks the model to divide its own total by the floor
+area and compare it against the band before answering — a bill landing under it
+is nearly always missing scope rather than being efficient.
+
+**What the anchors are, and are not.** They are indicative market rates,
+restated from the negotiated bill in `Bill No.2 — Phs 1 (Rev Nego 18 Des '24,
+PT.AM)` and escalated to a 2026 DKI basis (×1,18 escalation, ×1,12 regional).
+They are **not** the published Permen PUPR AHSP coefficients or the DKI HSPK
+tables. Upload that price list in **Pengetahuan** to quote the official
+figures; the anchors then act as the fallback rather than the source.
+
+The sample-project fixtures were restated onto the same basis — they were low
+even for the Jawa Barat basis they claimed. Uplift is per division (1,38
+structure through 1,50 preliminaries, weighted 1,43), which moves the sample
+from Rp 6.148.000 to **Rp 8.768.000 per m²**, inside the 7,5–10 jt band for the
+middle-class class it is labelled. Every dependent figure was recomputed:
+division totals, item rates, collapsed remainders, the recap ladder, VE savings
+and their percentages, the waterfall, scenario costs, and the dashboard KPIs.
+
 ## Build Up Cost — bill of quantities from an uploaded drawing set
 
 The **Build Up Cost & VE** screen has two tabs. *Ringkasan & VE* is the
