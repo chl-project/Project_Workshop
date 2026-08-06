@@ -145,6 +145,8 @@ export function Sidebar({
         {priceBasis.line1}
         <br />
         <span style={{ color: dark ? color.onDark : color.ink }}>{priceBasis.line2}</span>
+        <br />
+        <span title="Versi build yang sedang berjalan">build {__APP_COMMIT__}</span>
       </div>
     </aside>
   )
