@@ -145,6 +145,22 @@ export async function uploadDocument(projectId: string, file: File): Promise<Doc
       handleUploadUrl: `${API_BASE}/documents`,
       clientPayload: JSON.stringify({ projectId, name: file.name, apiKey: API_KEY ?? '' }),
     })
+
+    // Blob's onUploadCompleted webhook also records this, but it can't reach a
+    // local dev server and may fail in production — so record it here too. The
+    // server skips a URL it already has, so whichever lands first wins.
+    await fetch(`${API_BASE}/documents?action=record`, {
+      method: 'POST',
+      headers: writeHeaders(),
+      body: JSON.stringify({
+        projectId,
+        name: file.name,
+        url: blob.url,
+        size: file.size,
+        contentType: file.type || undefined,
+      }),
+    }).catch(() => undefined)
+
     return { id: blob.pathname, project_id: projectId, name: file.name, url: blob.url }
   } catch (err) {
     // The Blob SDK reports a generic "Failed to retrieve the client token" and
