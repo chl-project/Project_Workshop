@@ -8,8 +8,11 @@ import {
   parseSpecDocuments,
   parseSteps,
   partialError,
+  saveResource,
   uploadDocument,
 } from '@/api'
+import { extractText, isSupportedFile } from '@/lib/extract'
+import { extractMaterials, mergeMaterials } from '@/lib/materials'
 import {
   Chip,
   ErrorPanel,
@@ -310,16 +313,26 @@ function SpecTable({
   onNavigate: (s: ScreenId) => void
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
+  /* The table renders from local state so rows read out of an uploaded
+     document appear immediately; it re-syncs whenever the endpoint reloads. */
+  const [spec, setSpec] = useState<SpecData>(data)
   const [docs, setDocs] = useState<string[]>(data.documents)
   const [uploading, setUploading] = useState(false)
+  const [busyLabel, setBusyLabel] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadNote, setUploadNote] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<MaterialStatus | 'all'>('all')
   const [showFilter, setShowFilter] = useState(false)
   const [activeClass, setActiveClass] = useState(data.activeClass)
 
+  useEffect(() => {
+    setSpec(data)
+    setDocs(data.documents)
+  }, [data])
+
   const q = search.trim().toLowerCase()
-  const filtered = data.materials.filter(
+  const filtered = spec.materials.filter(
     (r) =>
       (statusFilter === 'all' || r.status === statusFilter) &&
       (q === '' ||
@@ -359,21 +372,68 @@ function SpecTable({
     }
   }, [projectId])
 
+  /**
+   * Stores the file, then reads its material rows into the table. The two are
+   * kept separate on purpose: a document that yields no rows (a drawing, an
+   * unreadable scan) is still uploaded, and only the reading step reports why.
+   */
   const onFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     setUploading(true)
     setUploadError(null)
-    try {
-      for (const file of Array.from(files)) {
+    setUploadNote(null)
+
+    let current = spec
+    const notes: string[] = []
+    const problems: string[] = []
+
+    for (const file of Array.from(files)) {
+      try {
+        setBusyLabel(`Mengunggah ${file.name}…`)
         const record = await uploadDocument(projectId, file)
         setDocs((prev) => (prev.includes(record.name) ? prev : [...prev, record.name]))
+
+        if (!isSupportedFile(file.name)) {
+          problems.push(`${file.name}: tersimpan, tapi isinya belum bisa dibaca otomatis.`)
+          continue
+        }
+
+        setBusyLabel(`Membaca ${file.name}…`)
+        const text = await extractText(file)
+
+        setBusyLabel(`Menyusun data dari ${file.name}…`)
+        const rows = await extractMaterials(file.name, text)
+        if (rows.length === 0) {
+          problems.push(`${file.name}: tidak ditemukan daftar material di dalamnya.`)
+          continue
+        }
+
+        const merged = mergeMaterials(current, rows, file.name)
+        current = merged.data
+        setSpec(current)
+        notes.push(
+          `${file.name}: ${merged.added} item masuk` +
+            (merged.skipped ? ` · ${merged.skipped} sudah ada` : ''),
+        )
+      } catch (err) {
+        problems.push(`${file.name}: ${err instanceof Error ? err.message : 'gagal diproses'}`)
       }
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload gagal')
-    } finally {
-      setUploading(false)
-      if (fileInput.current) fileInput.current.value = ''
     }
+
+    // Persist once, after every file in the batch has been folded in.
+    if (notes.length > 0) {
+      try {
+        await saveResource(keys.spesifikasi(projectId), current)
+      } catch {
+        problems.push('Data tampil di layar tapi gagal disimpan ke database.')
+      }
+    }
+
+    setUploadNote(notes.join(' · ') || null)
+    setUploadError(problems.join(' · ') || null)
+    setBusyLabel(null)
+    setUploading(false)
+    if (fileInput.current) fileInput.current.value = ''
   }
 
   return (
@@ -394,18 +454,27 @@ function SpecTable({
           type="file"
           multiple
           hidden
+          accept=".pdf,.xlsx,.xls,.xlsm,.ods,.csv,.txt,.md"
           onChange={(e) => void onFiles(e.target.files)}
         />
         <button
           type="button"
           className="btn-primary"
-          style={{ ...btnPrimary, opacity: uploading ? 0.6 : 1 }}
+          style={{ ...btnPrimary, flex: 'none', opacity: uploading ? 0.6 : 1 }}
           disabled={uploading}
           onClick={() => fileInput.current?.click()}
         >
-          {uploading ? 'Mengunggah…' : '＋ Upload dokumen'}
+          {busyLabel ?? '＋ Upload dokumen'}
         </button>
-        <div style={{ display: 'flex', gap: 7, font: mono('400 11px'), color: color.muted }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 7,
+            flexWrap: 'wrap',
+            font: mono('400 11px'),
+            color: color.muted,
+          }}
+        >
           {docs.map((doc) => (
             <span
               key={doc}
@@ -416,8 +485,25 @@ function SpecTable({
           ))}
         </div>
         <div style={{ flex: 1 }} />
-        <span style={{ font: sans('500 11px'), color: color.muted }}>Kelas proyek</span>
-        <Segmented options={data.projectClasses} value={activeClass} onChange={setActiveClass} />
+        <span style={{ font: sans('500 11px'), color: color.muted, whiteSpace: 'nowrap' }}>
+          Kelas proyek
+        </span>
+        <Segmented options={spec.projectClasses} value={activeClass} onChange={setActiveClass} />
+        {uploadNote && (
+          <div
+            style={{
+              flexBasis: '100%',
+              background: color.greenTint,
+              border: `1px solid ${color.greenLine}`,
+              borderRadius: 7,
+              padding: '9px 11px',
+              font: sans('400 11.5px/1.55'),
+              color: color.greenText,
+            }}
+          >
+            {uploadNote}
+          </div>
+        )}
         {uploadError && (
           <div
             style={{
@@ -448,7 +534,7 @@ function SpecTable({
           >
             <div style={{ font: sans('600 12.5px') }}>Material terstruktur</div>
             <span style={{ font: mono('400 11px'), color: color.faint }}>
-              {data.itemCount} item · {data.divisionCount} divisi
+              {spec.itemCount} item · {spec.divisionCount} divisi
             </span>
             <div style={{ flex: 1 }} />
             <input
@@ -559,7 +645,7 @@ function SpecTable({
               color: color.faint,
             }}
           >
-            Menampilkan {filtered.length} dari {data.itemCount} item
+            Menampilkan {filtered.length} dari {spec.itemCount} item
           </div>
         </div>
 
