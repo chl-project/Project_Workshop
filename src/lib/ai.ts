@@ -15,9 +15,9 @@ export interface VeSuggestResult {
 }
 
 /**
- * Asks the server to generate VE proposals. The server calls the configured LLM
- * (Anthropic) using its API key; if no key is set it returns `configured:false`
- * so the UI can explain what to configure instead of failing opaquely.
+ * Asks the server to generate VE proposals. The server calls the OpenAI API
+ * using its key; if no key is set it returns `configured:false` so the UI can
+ * explain what to configure instead of failing opaquely.
  */
 export async function requestVeSuggestions(
   projectId: string,

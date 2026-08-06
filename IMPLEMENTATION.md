@@ -77,6 +77,7 @@ api/
   health.ts             GET /api/health — verification endpoint
   store/[...path].ts    GET/PUT the JSONB store, keyed by the REST paths in `keys`
   documents.ts          GET list / POST upload (Blob file + Neon metadata row)
+  ve-suggest.ts         POST — OpenAI-generated value-engineering proposals
 ```
 
 **How the data gets there.** The store is a `store(path, value jsonb)` table
@@ -99,6 +100,8 @@ see `.env.example`):
 | `BLOB_READ_WRITE_TOKEN` | Blob integration | file uploads |
 | `API_KEY` | you | authorizes writes; if unset, writes are open |
 | `VITE_API_KEY` | you | public key the browser sends with writes — set equal to `API_KEY` |
+| `OPENAI_API_KEY` | you | powers "Minta usulan VE dari AI"; if unset, that one button reports AI is not configured |
+| `OPENAI_MODEL` | optional | defaults to `gpt-4o` |
 
 **Verify the setup:** after deploying, open `https://<your-app>/api/health`. A
 healthy setup returns `{ "ok": true, "neon": { "ok": true, … }, "blob": { "configured": true }, … }`.
