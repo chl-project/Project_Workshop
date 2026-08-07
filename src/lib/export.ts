@@ -1,10 +1,9 @@
 /**
- * Dependency-free client-side export helpers.
+ * Client-side export helpers.
  *
- * `downloadExcel` writes an Excel-openable file (an HTML table with the
- * `application/vnd.ms-excel` MIME type — Excel and Google Sheets both import
- * it, keeping the visible number formatting). `printReport` opens a clean
- * print view the user saves as PDF via the browser's print dialog.
+ * `printReport` opens a clean print view the user saves as PDF via the
+ * browser's print dialog. Spreadsheets live in `lib/xlsx`, which writes real
+ * `.xlsx` files with the calculations left in as live formulas.
  */
 
 const esc = (s: string) =>
@@ -19,25 +18,6 @@ export function triggerDownload(blob: Blob, filename: string) {
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
-
-/** Downloads `rows` as an Excel-openable file named `<filename>.xls`. */
-export function downloadExcel(
-  filename: string,
-  sheetTitle: string,
-  headers: string[],
-  rows: (string | number)[][],
-) {
-  const thead = `<tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>`
-  const tbody = rows
-    .map((r) => `<tr>${r.map((c) => `<td>${esc(String(c))}</td>`).join('')}</tr>`)
-    .join('')
-  const html =
-    `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8" />` +
-    `<style>table{border-collapse:collapse}th,td{border:1px solid #ccc;padding:4px 8px;` +
-    `font-family:Arial,sans-serif;font-size:12px;text-align:left}th{background:#EFEFE8}</style></head>` +
-    `<body><h3>${esc(sheetTitle)}</h3><table>${thead}${tbody}</table></body></html>`
-  triggerDownload(new Blob([html], { type: 'application/vnd.ms-excel' }), `${filename}.xls`)
 }
 
 /**

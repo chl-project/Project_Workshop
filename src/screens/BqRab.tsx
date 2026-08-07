@@ -1,7 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchBq, keys, recalcHeader, recalculateBq, recalcSteps } from '@/api'
 import { aiBannerText } from '@/data/cost'
-import { downloadExcel, htmlTable, printReport } from '@/lib/export'
+import { htmlTable, printReport } from '@/lib/export'
+import {
+  downloadExcel,
+  formula,
+  legendSheet,
+  parseIdNumber,
+  ref,
+  sumCells,
+  sumRange,
+  HEADER_ROWS,
+  type Cell,
+} from '@/lib/xlsx'
 import { AiBanner } from '@/components/AiBanner'
 import { Field, Modal } from '@/components/Modal'
 import { Chip, ErrorPanel, LoadingPanel, NoDataPanel, ProgressStep } from '@/components/primitives'
@@ -24,6 +35,104 @@ const confidenceTone: Record<Confidence, ChipTone> = {
   Tinggi: 'green',
   Sedang: 'amber',
   'Perlu verifikasi': 'red',
+}
+
+/* Zero-based columns of the exported bill — the formulas are addressed off these. */
+const COL_VOLUME = 3
+const COL_UNIT_PRICE = 4
+const COL_AMOUNT = 5
+
+/**
+ * The bill as Excel rows, with every derived figure written as a live formula.
+ *
+ * The screen holds its figures as Indonesian display strings, so they are
+ * parsed back to numbers first — a formula cannot be built on "1.840,00". Where
+ * a figure will not parse the row falls back to the string it came from: an
+ * unreadable cell should still print, it just cannot take part in the sums.
+ *
+ * Rows are pushed in order, so `rows.length` is the index of the row about to
+ * be written. `HEADER_ROWS` offsets that by the title block `downloadExcel`
+ * puts above the table.
+ */
+function bqExcelRows(data: BqData): Cell[][] {
+  const rows: Cell[][] = []
+  const at = () => rows.length + HEADER_ROWS
+  const divisionRows: number[] = []
+  let grandTotal = 0
+
+  for (const div of data.divisions) {
+    const headerRow = at()
+    divisionRows.push(headerRow)
+    // Reserved: the division total sums the item rows written after it.
+    rows.push([div.no, div.title, null, null, null, null, null])
+
+    const firstItemRow = at()
+    let divisionTotal = 0
+    let priced = 0
+
+    for (const item of div.items ?? []) {
+      const row = at()
+      const volume = parseIdNumber(item.volume)
+      const unitPrice = parseIdNumber(item.unitPrice)
+      const amount = parseIdNumber(item.amount)
+
+      const amountCell: Cell =
+        volume != null && unitPrice != null
+          ? formula(
+              `${ref(COL_VOLUME, row)}*${ref(COL_UNIT_PRICE, row)}`,
+              amount ?? volume * unitPrice,
+            )
+          : (amount ?? item.amount)
+
+      if (typeof amountCell !== 'string') {
+        priced++
+        divisionTotal += typeof amountCell === 'number' ? amountCell : (amountCell?.v ?? 0)
+      }
+      rows.push([
+        item.no,
+        item.description,
+        item.unit,
+        volume ?? item.volume,
+        unitPrice ?? item.unitPrice,
+        amountCell,
+        item.confidence,
+      ])
+    }
+
+    if (div.restLabel) {
+      const rest = parseIdNumber(div.restAmount)
+      if (rest != null) {
+        priced++
+        divisionTotal += rest
+      }
+      rows.push([null, div.restLabel, null, null, null, rest ?? div.restAmount ?? null, null])
+    }
+
+    const lastItemRow = at() - 1
+    // A division shown collapsed carries no item rows behind it; its total is an
+    // input, not a sum, and saying so is more honest than a SUM over nothing.
+    const total = parseIdNumber(div.amount)
+    rows[headerRow - HEADER_ROWS][COL_AMOUNT] =
+      priced > 0 && lastItemRow >= firstItemRow
+        ? sumRange(COL_AMOUNT, firstItemRow, lastItemRow, divisionTotal)
+        : (total ?? div.amount)
+    grandTotal += priced > 0 ? divisionTotal : (total ?? 0)
+  }
+
+  rows.push([])
+  rows.push([
+    null,
+    data.grandTotal.label,
+    null,
+    null,
+    null,
+    divisionRows.length > 0
+      ? sumCells(COL_AMOUNT, divisionRows, grandTotal)
+      : (parseIdNumber(data.grandTotal.amount) ?? data.grandTotal.amount),
+    null,
+  ])
+
+  return rows
 }
 
 export function BqRab({
@@ -89,7 +198,36 @@ export function BqRab({
   }
   const bqHeaders = ['No', 'Uraian Pekerjaan', 'Satuan', 'Volume', 'Harga Satuan', 'Jumlah Harga', 'Keyakinan']
 
-  const exportBqExcel = () => downloadExcel('bq-rab', 'BQ / RAB', bqHeaders, bqRows())
+  const exportBqExcel = () => {
+    void downloadExcel('bq-rab', 'BQ / RAB', bqHeaders, bqExcelRows(data), {
+      formats: { qty: [COL_VOLUME], money: [COL_UNIT_PRICE, COL_AMOUNT] },
+      cols: [9, 56, 8, 14, 18, 20, 18],
+      extraSheets: [
+        legendSheet('BQ / RAB', [
+          {
+            target: 'Jumlah Harga (kolom F)',
+            rule: '= Volume × Harga Satuan',
+            note: 'Ubah volume atau harga satuannya, jumlah dan seluruh total ikut berubah.',
+          },
+          {
+            target: 'Jumlah per divisi',
+            rule: '= SUM(Jumlah Harga seluruh item divisi)',
+            note: 'Termasuk baris item lainnya yang tidak dirinci di layar.',
+          },
+          {
+            target: data.grandTotal.label,
+            rule: '= jumlah dari keenam sel total divisi',
+            note: `${data.grandTotal.meta} · sumber harga ${src.prices}.`,
+          },
+          {
+            target: 'Divisi tanpa rincian',
+            rule: 'angka masukan',
+            note: 'Divisi yang belum diuraikan per item tidak punya rumus — angkanya diisi langsung.',
+          },
+        ]),
+      ],
+    })
+  }
   const exportBqPdf = () =>
     printReport(
       'BQ / RAB',

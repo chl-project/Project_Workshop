@@ -36,6 +36,7 @@ src/
   lib/scenario.ts       weighting, scoring, radar geometry, recommendation
   lib/buildup.ts        bill arithmetic (rate/amount/subtotal/total) + transport
   lib/buildupExport.ts  the bill as .xlsx / PDF / CSV / JSON
+  lib/xlsx.ts           workbook writer — derived cells go out as live formulas
 ```
 
 ## Responsive layout
@@ -122,9 +123,24 @@ The workflow is upload → read → price → export:
    slips a digit in a sum therefore cannot put a wrong figure on screen, and the
    profit / waste percentages in the toolbar reprice the whole bill locally —
    no second round trip.
-4. **Export** — `.xlsx` (SheetJS, three sheets: the bill in the source
-   workbook's exact column order, AHS, and a Catatan sheet carrying the
-   assumptions), PDF via the print view, CSV, and the raw JSON.
+4. **Export** — `.xlsx` (SheetJS, four sheets: the bill in the source
+   workbook's exact column order, AHS, a Catatan sheet carrying the assumptions,
+   and a Rumus sheet), PDF via the print view, CSV, and the raw JSON.
+
+**Every Excel export ships its arithmetic, not just its answers.** `lib/xlsx.ts`
+writes each derived cell as a live formula with the computed figure cached
+beside it, so the file opens on the right number and still shows the working:
+`Rate` is `=SUM(E12:I12)` across the five build-up columns, `Amount` is
+`=D12*J12`, a section subtotal sums its own item rows, the collection points at
+each subtotal cell, the grand total sums the collection, and cost per m² divides
+that total across the sheets. Where the user set a markup the percentage stays
+visible in the cell — `=E12*10%` — rather than being melted into a number. Every
+workbook also carries a **Rumus** sheet stating each rule in words. The same
+holds for the BQ / RAB export, whose display strings are parsed back to numbers
+so the formulas have something to stand on; a figure that will not parse keeps
+its original text and simply sits out of the sums. The point is that a bill
+arriving as flat numbers gets retyped into the receiver's own model, while a
+bill carrying its formulas gets checked — and repriced by changing one input.
 
 **When data is missing, the estimate asks.** An uploaded drawing set almost
 never carries everything a price needs. The model is told to produce the bill

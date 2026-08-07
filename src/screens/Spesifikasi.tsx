@@ -22,7 +22,7 @@ import {
   ProgressStep,
   Segmented,
 } from '@/components/primitives'
-import { downloadExcel } from '@/lib/export'
+import { downloadExcel, legendSheet } from '@/lib/xlsx'
 import { useResource } from '@/hooks/useResource'
 import { useViewport } from '@/hooks/useViewport'
 import { btnPrimary, card, cardClipped, screenSub, screenTitle, scrollX, splitGrid, table, th, theadRow, type ChipTone } from '@/theme/styles'
@@ -366,12 +366,37 @@ function SpecTable({
   ]
   const activeFilterLabel = statusOptions.find((o) => o.value === statusFilter)?.label
 
+  /**
+   * The material schedule carries no derived column — every value on it is read
+   * off a document rather than calculated — so there is no formula to show. The
+   * sheet says so, rather than leaving the reader to wonder where the workbook's
+   * arithmetic went.
+   */
   const exportExcel = () =>
-    downloadExcel(
+    void downloadExcel(
       'spesifikasi-material',
       'Spesifikasi & Material',
       ['Divisi', 'Item', 'Spesifikasi', 'Standar', 'Volume', 'Status'],
       filtered.map((r) => [r.division, r.item, r.spec, r.standard, r.volume, r.statusLabel]),
+      {
+        cols: [22, 34, 44, 26, 16, 18],
+        extraSheets: [
+          legendSheet('Spesifikasi & Material', [
+            {
+              target: 'Seluruh kolom',
+              rule: 'angka & teks masukan',
+              note:
+                'Daftar ini dibaca langsung dari dokumen spesifikasi — tidak ada kolom turunan, ' +
+                'jadi tidak ada rumus. Volume diambil apa adanya dari sumbernya.',
+            },
+            {
+              target: 'Perhitungan volume & harga',
+              rule: 'lihat ekspor BQ / RAB dan Build Up Cost',
+              note: 'Di kedua file itu setiap angka turunan ditulis sebagai formula Excel.',
+            },
+          ]),
+        ],
+      },
     )
 
   // Merge any documents already uploaded to Blob for this project.
