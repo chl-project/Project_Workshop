@@ -10,6 +10,7 @@ import {
   sumRange,
   type Cell,
   type FormulaNote,
+  type SheetStyle,
 } from './xlsx'
 import type { BuildUpDoc } from '@/types'
 
@@ -86,7 +87,7 @@ function baseName(doc: BuildUpDoc): string {
  * document's own total, so the figure Excel shows before a recalculation and
  * the figure it shows after one can never disagree.
  */
-function bqRows(doc: BuildUpDoc): Row[] {
+function bqRows(doc: BuildUpDoc): { rows: Row[]; style: SheetStyle } {
   const rows: Row[] = [
     [doc.project],
     [doc.location],
@@ -102,8 +103,12 @@ function bqRows(doc: BuildUpDoc): Row[] {
 
   /** Where each section's subtotal landed, so the collection can point at it. */
   const subtotalRows: (number | null)[] = []
+  /** Row roles, collected as the sheet is laid out. */
+  const group: number[] = []
+  const subtotalStyleRows: number[] = []
 
   for (const section of doc.sections) {
+    group.push(rows.length)
     rows.push([section.ref, section.title])
     rows.push([])
 
@@ -175,6 +180,7 @@ function bqRows(doc: BuildUpDoc): Row[] {
           : section.subtotal
 
     subtotalRows.push(section.subtotalNote == null && written > 0 ? rows.length : null)
+    subtotalStyleRows.push(rows.length)
     rows.push([
       null, null, null, null, null, null, null, null, null,
       `Subtotal ${titleCase(section.title)}`,
@@ -183,6 +189,7 @@ function bqRows(doc: BuildUpDoc): Row[] {
     rows.push([])
   }
 
+  group.push(rows.length)
   rows.push([null, 'Collection'])
   const collectionFirst = rows.length
   let collectionTotal = 0
@@ -208,6 +215,7 @@ function bqRows(doc: BuildUpDoc): Row[] {
   const collectionLast = rows.length - 1
 
   rows.push([])
+  const totalRow = rows.length
   rows.push([
     null, null, null, null, null, null, null, null, null,
     doc.grandTotalLabel,
@@ -216,10 +224,21 @@ function bqRows(doc: BuildUpDoc): Row[] {
       : doc.grandTotal,
   ])
 
-  return rows
+  return {
+    rows,
+    style: {
+      title: [0, 1, 2, 3],
+      head: [4, 5],
+      group,
+      subtotal: subtotalStyleRows,
+      total: [totalRow],
+      gridFrom: 4,
+      gridCols: [COL.ref, COL.amount],
+    },
+  }
 }
 
-function ahsRows(doc: BuildUpDoc): Row[] {
+function ahsRows(doc: BuildUpDoc): { rows: Row[]; style: SheetStyle } {
   const rows: Row[] = [
     ['ANALISA HARGA SATUAN'],
     [doc.project],
@@ -230,7 +249,11 @@ function ahsRows(doc: BuildUpDoc): Row[] {
     [],
   ]
 
+  const group: number[] = []
+  const subtotal: number[] = []
+
   for (const analysis of doc.ahs) {
+    group.push(rows.length)
     rows.push([analysis.no, analysis.title])
 
     const firstRow = rows.length
@@ -257,6 +280,7 @@ function ahsRows(doc: BuildUpDoc): Row[] {
     }
 
     const lastRow = rows.length - 1
+    subtotal.push(rows.length)
     rows.push([
       null,
       null,
@@ -271,7 +295,17 @@ function ahsRows(doc: BuildUpDoc): Row[] {
     rows.push([])
   }
 
-  return rows
+  return {
+    rows,
+    style: {
+      title: [0, 1, 2],
+      head: [4, 5],
+      group,
+      subtotal,
+      gridFrom: 4,
+      gridCols: [AHS.no, AHS.total],
+    },
+  }
 }
 
 /** What the "Rumus" sheet says about the bill, in words. */
@@ -401,24 +435,28 @@ function notesRows(doc: BuildUpDoc, billRef: { sheet: string; grandTotal: string
 /** Writes the workbook: bill, unit-price analyses, collection, and the notes. */
 export async function exportBuildUpXlsx(doc: BuildUpDoc): Promise<void> {
   const bill = bqRows(doc)
+  const ahs = doc.ahs.length > 0 ? ahsRows(doc) : null
   // The grand total is always the last row written; the notes sheet points its
   // cost-per-m² at that cell across the tabs.
   const billName = sheetName(doc.unit || 'BQ')
-  const grandTotalCell = ref(COL.amount, bill.length - 1)
+  const grandTotalCell = ref(COL.amount, bill.rows.length - 1)
+  const notes = notesRows(doc, { sheet: billName, grandTotal: grandTotalCell })
 
   await downloadWorkbook(baseName(doc), [
     {
       name: billName,
-      rows: bill,
+      rows: bill.rows,
+      style: bill.style,
       formats: { qty: [COL.qty], money: [4, 5, 6, 7, 8, 9, 10] },
       cols: [8, 56, 8, 13, 16, 16, 14, 12, 14, 22, 20],
       merges: [[0, 0, 3]],
     },
-    ...(doc.ahs.length > 0
+    ...(ahs
       ? [
           {
             name: 'AHS',
-            rows: ahsRows(doc),
+            rows: ahs.rows,
+            style: ahs.style,
             formats: { qty: [AHS.qty], money: [AHS.unitPrice, AHS.total] },
             cols: [6, 44, 38, 10, 8, 16, 18],
           },
@@ -426,8 +464,9 @@ export async function exportBuildUpXlsx(doc: BuildUpDoc): Promise<void> {
       : []),
     {
       name: 'Catatan',
-      rows: notesRows(doc, { sheet: billName, grandTotal: grandTotalCell }),
+      rows: notes,
       cols: [26, 110],
+      style: { title: [0] },
     },
     legendSheet(`${doc.title} — ${doc.unit || doc.project}`, formulaNotes(doc)),
   ])
@@ -450,7 +489,7 @@ export function exportBuildUpCsv(doc: BuildUpDoc): void {
     const s = v == null ? '' : isFormula(v) ? `=${v.f}` : String(v)
     return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  const lines = bqRows(doc).map((row) => row.map(quote).join(';'))
+  const lines = bqRows(doc).rows.map((row) => row.map(quote).join(';'))
   // A BOM makes Excel on a Windows machine read the file as UTF-8.
   triggerDownload(
     new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }),

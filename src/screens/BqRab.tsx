@@ -12,6 +12,7 @@ import {
   sumRange,
   HEADER_ROWS,
   type Cell,
+  type SheetStyle,
 } from '@/lib/xlsx'
 import { AiBanner } from '@/components/AiBanner'
 import { Field, Modal } from '@/components/Modal'
@@ -54,7 +55,7 @@ const COL_AMOUNT = 5
  * be written. `HEADER_ROWS` offsets that by the title block `downloadExcel`
  * puts above the table.
  */
-function bqExcelRows(data: BqData): Cell[][] {
+function bqExcelRows(data: BqData): { rows: Cell[][]; style: SheetStyle } {
   const rows: Cell[][] = []
   const at = () => rows.length + HEADER_ROWS
   const divisionRows: number[] = []
@@ -120,6 +121,7 @@ function bqExcelRows(data: BqData): Cell[][] {
   }
 
   rows.push([])
+  const totalRow = at()
   rows.push([
     null,
     data.grandTotal.label,
@@ -132,7 +134,7 @@ function bqExcelRows(data: BqData): Cell[][] {
     null,
   ])
 
-  return rows
+  return { rows, style: { group: divisionRows, total: [totalRow] } }
 }
 
 export function BqRab({
@@ -199,7 +201,9 @@ export function BqRab({
   const bqHeaders = ['No', 'Uraian Pekerjaan', 'Satuan', 'Volume', 'Harga Satuan', 'Jumlah Harga', 'Keyakinan']
 
   const exportBqExcel = () => {
-    void downloadExcel('bq-rab', 'BQ / RAB', bqHeaders, bqExcelRows(data), {
+    const bill = bqExcelRows(data)
+    void downloadExcel('bq-rab', 'BQ / RAB', bqHeaders, bill.rows, {
+      style: bill.style,
       formats: { qty: [COL_VOLUME], money: [COL_UNIT_PRICE, COL_AMOUNT] },
       cols: [9, 56, 8, 14, 18, 20, 18],
       extraSheets: [

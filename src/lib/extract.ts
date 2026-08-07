@@ -190,7 +190,8 @@ function fileToDataUrl(file: File): Promise<string> {
  * so on, which varies from one supplier's file to the next.
  */
 async function extractSheetText(file: File): Promise<string> {
-  const XLSX = await import('xlsx')
+  // Same reader as the export path — one copy of SheetJS in the bundle.
+  const XLSX = await import('xlsx-js-style')
   const buffer = await file.arrayBuffer()
   const book = XLSX.read(buffer, { type: 'array' })
 

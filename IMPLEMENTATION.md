@@ -36,7 +36,7 @@ src/
   lib/scenario.ts       weighting, scoring, radar geometry, recommendation
   lib/buildup.ts        bill arithmetic (rate/amount/subtotal/total) + transport
   lib/buildupExport.ts  the bill as .xlsx / PDF / CSV / JSON
-  lib/xlsx.ts           workbook writer — derived cells go out as live formulas
+  lib/xlsx.ts           workbook writer — live formulas + the ruled table styling
 ```
 
 ## Responsive layout
@@ -141,6 +141,22 @@ so the formulas have something to stand on; a figure that will not parse keeps
 its original text and simply sits out of the sums. The point is that a bill
 arriving as flat numbers gets retyped into the receiver's own model, while a
 bill carrying its formulas gets checked — and repriced by changing one input.
+
+**The sheets are ruled, not naked grids.** A sheet declares which rows are the
+title block, the column headers, a section or division, a subtotal and the grand
+total; the writer turns that into borders and fills drawn from the app's own
+palette, so an exported bill and the screen it came from read as one document.
+The rule runs through the blank spacer rows between sections too — a table whose
+lines stop at the gaps reads as several tables — which means materialising those
+empty cells, since OOXML drops a cell carrying neither value nor formula.
+
+This is why the spreadsheet dependency is **`xlsx-js-style`** rather than
+`xlsx`. They are the same library and the same API; SheetJS's community build
+silently discards `cell.s` when it writes, so borders, fills and bold headers
+never reach the file. The fork is also the reader `lib/extract.ts` uses, so the
+bundle carries one copy. It costs about 180 kB gzipped over stock SheetJS, on a
+chunk that is only fetched when someone exports or uploads a spreadsheet. Freeze
+panes are *not* available in either build, so no sheet claims to have them.
 
 **When data is missing, the estimate asks.** An uploaded drawing set almost
 never carries everything a price needs. The model is told to produce the bill
